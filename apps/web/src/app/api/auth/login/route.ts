@@ -3,12 +3,20 @@ import { isAPIError } from "better-auth/api";
 import { auth } from "@/server/auth";
 import { writeAuditLog } from "@/server/audit/log";
 import { handleApiError } from "@/server/api/errors";
+import { assertRateLimit } from "@/server/api/rate-limit";
+import { getClientIp } from "@/server/api/request";
 import { toUserRole } from "@/server/auth/roles";
 import { loginSchema } from "@/server/validation/auth";
 
 export async function POST(request: Request) {
   try {
     const input = loginSchema.parse(await request.json());
+    assertRateLimit(request, {
+      namespace: "auth.login",
+      key: `${getClientIp(request) ?? "anonymous"}:${input.email.toLowerCase()}`,
+      limit: 5,
+      windowMs: 60_000,
+    });
     const response = await auth.api.signInEmail({
       body: input,
       headers: request.headers,

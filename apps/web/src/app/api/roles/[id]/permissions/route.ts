@@ -1,4 +1,5 @@
 import { handleApiError } from "@/server/api/errors";
+import { assertRateLimit } from "@/server/api/rate-limit";
 import { ok } from "@/server/api/response";
 import { requireSuperAdmin, updateRolePermissions } from "@/server/api/super-admin";
 import { isUserRole } from "@/server/auth/roles";
@@ -11,6 +12,11 @@ type RouteContext = {
 
 export async function PATCH(request: Request, context: RouteContext) {
   try {
+    assertRateLimit(request, {
+      namespace: "roles.permissions.update",
+      limit: 20,
+      windowMs: 300_000,
+    });
     const actor = await requireSuperAdmin(request);
     const { id } = await context.params;
     if (!isUserRole(id)) {

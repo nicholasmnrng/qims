@@ -484,6 +484,7 @@ export const tasks = pgTable(
     index("tasks_shift_assignment_id_idx").on(table.shiftAssignmentId),
     index("tasks_status_idx").on(table.status),
     index("tasks_priority_idx").on(table.priority),
+    index("tasks_due_at_idx").on(table.dueAt),
     index("tasks_created_at_idx").on(table.createdAt),
   ],
 );
@@ -504,6 +505,7 @@ export const taskEvents = pgTable(
   },
   (table) => [
     index("task_events_task_id_idx").on(table.taskId),
+    index("task_events_event_type_idx").on(table.eventType),
     index("task_events_actor_id_idx").on(table.actorId),
     index("task_events_created_at_idx").on(table.createdAt),
   ],
@@ -532,6 +534,7 @@ export const skillMatrix = pgTable(
     index("skill_matrix_user_id_idx").on(table.userId),
     index("skill_matrix_area_id_idx").on(table.areaId),
     index("skill_matrix_skill_level_idx").on(table.skillLevel),
+    index("skill_matrix_valid_until_idx").on(table.validUntil),
   ],
 );
 
@@ -620,6 +623,8 @@ export const procedureAcknowledgements = pgTable(
     index("procedure_ack_version_id_idx").on(table.procedureVersionId),
     index("procedure_ack_user_id_idx").on(table.userId),
     index("procedure_ack_read_at_idx").on(table.readAt),
+    index("procedure_ack_understood_at_idx").on(table.understoodAt),
+    index("procedure_ack_created_at_idx").on(table.createdAt),
   ],
 );
 
@@ -649,7 +654,9 @@ export const handovers = pgTable(
     index("handovers_from_shift_assignment_id_idx").on(table.fromShiftAssignmentId),
     index("handovers_to_shift_id_idx").on(table.toShiftId),
     index("handovers_area_id_idx").on(table.areaId),
+    index("handovers_submitted_by_idx").on(table.submittedBy),
     index("handovers_status_idx").on(table.status),
+    index("handovers_created_at_idx").on(table.createdAt),
   ],
 );
 
@@ -680,6 +687,7 @@ export const issueReports = pgTable(
     index("issue_reports_task_id_idx").on(table.taskId),
     index("issue_reports_shift_assignment_id_idx").on(table.shiftAssignmentId),
     index("issue_reports_reported_by_idx").on(table.reportedBy),
+    index("issue_reports_assigned_to_idx").on(table.assignedTo),
     index("issue_reports_status_idx").on(table.status),
     index("issue_reports_severity_idx").on(table.severity),
     index("issue_reports_created_at_idx").on(table.createdAt),
@@ -727,6 +735,7 @@ export const issueEvents = pgTable(
   },
   (table) => [
     index("issue_events_issue_id_idx").on(table.issueId),
+    index("issue_events_event_type_idx").on(table.eventType),
     index("issue_events_actor_id_idx").on(table.actorId),
     index("issue_events_created_at_idx").on(table.createdAt),
   ],
@@ -774,6 +783,8 @@ export const notificationRecipients = pgTable(
     index("notification_recipients_notification_id_idx").on(table.notificationId),
     index("notification_recipients_user_id_idx").on(table.userId),
     index("notification_recipients_delivery_status_idx").on(table.deliveryStatus),
+    index("notification_recipients_read_at_idx").on(table.readAt),
+    index("notification_recipients_acknowledged_at_idx").on(table.acknowledgedAt),
   ],
 );
 
@@ -801,6 +812,7 @@ export const offlineDrafts = pgTable(
     index("offline_drafts_user_id_idx").on(table.userId),
     index("offline_drafts_status_idx").on(table.status),
     index("offline_drafts_type_idx").on(table.draftType),
+    index("offline_drafts_created_at_idx").on(table.createdAt),
     index("offline_drafts_updated_at_idx").on(table.updatedAt),
   ],
 );

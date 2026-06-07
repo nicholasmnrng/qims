@@ -193,3 +193,21 @@ Log ini menjadi catatan utama pekerjaan agent. Semua agent wajib menambah entry 
 
 ### Notes
 - GitHub issue: #5 Tahap 6 - Backend Auditor / Viewer.
+
+## 2026-06-08 - Tahap 7 Backend Hardening
+
+### PRD Validation
+- PRD sections checked before work: 11 Architecture, 15 Security Requirements, 16 Performance Requirements, 18 Eco-Mode Requirements, 19 Data Retention & Compliance, 22 Acceptance Criteria Global, 24 Definition of Done.
+- Agent skill used: `agent-skills/backend-agent/SKILL.md` and `agent-skills/stage-delivery-agent/SKILL.md`.
+- Work completed: added backend hardening rate limiter and `RATE_LIMITED` error response, protected login/native auth/report export/role permission/system setting endpoints, added performance indexes and migration, documented transaction review, added typed storage contract, notification worker contract, realtime channel/payload contract, added API reference and hardening docs, and added focused tests for rate limit and backend contracts.
+- Files changed: `apps/web/src/app/api/auth/[...all]/route.ts`, `apps/web/src/app/api/auth/login/route.ts`, `apps/web/src/app/api/reports/export/route.ts`, `apps/web/src/app/api/roles/[id]/permissions/route.ts`, `apps/web/src/app/api/system-settings/route.ts`, `apps/web/src/server/api/http-error.ts`, `apps/web/src/server/api/response.ts`, `apps/web/src/server/api/rate-limit.ts`, `apps/web/src/server/api/rate-limit.test.ts`, `apps/web/src/server/contracts/storage.ts`, `apps/web/src/server/contracts/notification-worker.ts`, `apps/web/src/server/contracts/realtime.ts`, `apps/web/src/server/contracts/contracts.test.ts`, `apps/web/src/server/db/schema.ts`, `apps/web/drizzle/0004_ambitious_dexter_bennett.sql`, `apps/web/drizzle/meta/0004_snapshot.json`, `apps/web/drizzle/meta/_journal.json`, `docs/API_FOUNDATION.md`, `docs/API_REFERENCE.md`, `docs/BACKEND_HARDENING.md`, `docs/WORK_LOG.md`, `docs/agent-reports/2026-06-08-backend-hardening.md`.
+- Tests/checks run: `npm run db:generate` passed and generated index migration, final rerun passed with no schema changes; `npm run db:migrate` passed; `npm run db:seed` passed; `npm run typecheck` passed; `npm test` passed with 9 files and 40 tests; `npm run lint` passed; `npm run build` passed; `npm audit --audit-level=high` passed.
+- PRD sections checked after work: 11 Architecture, 15 Security Requirements, 16 Performance Requirements, 18 Eco-Mode Requirements, 19 Data Retention & Compliance, 22 Acceptance Criteria Global, 23 Final Production Notes, 24 Definition of Done.
+- Requirements satisfied: backend has documented endpoint reference for frontend consumption; login and sensitive endpoints have rate limiting; operational query indexes were strengthened; important transaction coverage was reviewed and documented; storage, notification worker, and realtime contracts are typed and documented; no new large list endpoint was added without pagination; full backend checks pass.
+- Requirements not yet satisfied: production Redis-backed rate limiter, actual signed upload URL route/provider, realtime transport runtime, background worker runtime, async large report export worker, observability service, and frontend/mobile UI are deferred to later integration/deployment stages.
+- Assumptions made: in-memory rate limit is acceptable for local MVP contract but must move to Redis/managed cache for production multi-instance deployment; storage and worker contracts should be typed/documented now, while provider credentials and runtime jobs are implemented when deployment infrastructure is chosen.
+- Deviations from PRD: none intentional for Tahap 7 scope.
+- User approval needed: approve Tahap 7 before starting frontend stages.
+
+### Notes
+- GitHub issue: #6 Tahap 7 - Backend Hardening.

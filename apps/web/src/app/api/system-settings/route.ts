@@ -1,4 +1,5 @@
 import { handleApiError } from "@/server/api/errors";
+import { assertRateLimit } from "@/server/api/rate-limit";
 import { ok } from "@/server/api/response";
 import {
   listSystemSettings,
@@ -18,6 +19,11 @@ export async function GET(request: Request) {
 
 export async function PATCH(request: Request) {
   try {
+    assertRateLimit(request, {
+      namespace: "system-settings.update",
+      limit: 20,
+      windowMs: 300_000,
+    });
     const actor = await requireSuperAdmin(request);
     const input = updateSystemSettingsSchema.parse(await request.json());
     return ok(

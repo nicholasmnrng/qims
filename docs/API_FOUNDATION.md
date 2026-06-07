@@ -8,6 +8,10 @@ Dokumen ini hanya mencakup endpoint foundation Tahap 1. Endpoint role spesifik a
 
 Login email/password melalui Better Auth.
 
+Rate limit:
+
+- 5 request per menit per kombinasi IP dan email.
+
 Body:
 
 ```json
@@ -43,6 +47,8 @@ Better Auth juga dimount di:
 ```
 
 Ini diperlukan untuk kompatibilitas client Better Auth dan endpoint internal library.
+
+Native Better Auth `POST` route memiliki rate limit 30 request per menit per IP sebagai proteksi tambahan.
 
 ## Current User
 
