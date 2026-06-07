@@ -121,3 +121,21 @@ Log ini menjadi catatan utama pekerjaan agent. Semua agent wajib menambah entry 
 ### Notes
 - GitHub issue: #1 Tahap 2 - Backend Super Admin.
 - NPM still reports moderate transitive advisories, but `npm audit --audit-level=high` passes and suggested fixes require breaking changes.
+
+## 2026-06-07 - Tahap 3 Backend Supervisor / Leader
+
+### PRD Validation
+- PRD sections checked before work: 7.3 Shift & Schedule Management, 7.4 Task & Priority Management, 7.5 Real-Time Priority Update, 7.6 SOP & Procedure Management, 7.7 Skill Matrix Management, 7.9 Handover Shift, 7.10 Issue Reporting, 7.11 Notification Center, 7.12 Audit Trail, 13 Database Schema, 14 API Specification, 15 Security Requirements, 16.3 Backend, 21 MVP Production Release Scope, 22 Acceptance Criteria Global, 24 Definition of Done.
+- Agent skill used: `agent-skills/backend-agent/SKILL.md` and `agent-skills/stage-delivery-agent/SKILL.md`.
+- Work completed: implemented Supervisor/Leader backend schema, migration, route handlers, validation, assignment conflict checks, task events, notification records, SOP version targeting, skill matrix gaps, handover monitoring, issue monitoring/status update, API docs, and focused tests.
+- Files changed: `apps/web/src/server/db/schema.ts`, `apps/web/src/server/api/supervisor.ts`, `apps/web/src/server/validation/supervisor.ts`, `apps/web/src/server/validation/supervisor.test.ts`, `apps/web/src/app/api/shift-assignments/**`, `apps/web/src/app/api/tasks/**`, `apps/web/src/app/api/procedures/**`, `apps/web/src/app/api/procedure-versions/**`, `apps/web/src/app/api/skill-matrix/**`, `apps/web/src/app/api/inspectors/[id]/skills/route.ts`, `apps/web/src/app/api/handovers/**`, `apps/web/src/app/api/issues/**`, `apps/web/src/app/api/notifications/route.ts`, `apps/web/drizzle/0002_peaceful_gertrude_yorkes.sql`, `apps/web/drizzle/meta/**`, `docs/API_SUPERVISOR.md`, `docs/agent-reports/2026-06-07-backend-supervisor.md`, `docs/WORK_LOG.md`.
+- Tests/checks run: `npm run db:generate` passed; `npm run db:migrate` passed; `npm run db:seed` passed; `npm run typecheck` passed; `npm test` passed with 4 files and 19 tests; `npm run lint` passed; `npm run build` passed; `npm audit --audit-level=high` passed.
+- PRD sections checked after work: 7.3, 7.4, 7.5, 7.6, 7.7, 7.9, 7.10, 7.11, 7.12, 13, 14, 15, 16.3, 21, 22, 24.
+- Requirements satisfied: Supervisor can create/update/publish/duplicate shift assignments, detect assignment conflicts, manage tasks/status/priority, create task events, publish SOP versions with targets, maintain skill matrix, monitor handovers, monitor/update issues, inspect notification records, and rely on audit logs for operational writes.
+- Requirements not yet satisfied: Inspector-specific actions such as task acknowledgement, SOP acknowledgement, handover submit/acknowledge, issue create/comment, notification read/acknowledge, offline draft, and eco-mode setting are reserved for Tahap 4.
+- Assumptions made: notification rows are the source of truth for later realtime/push delivery; actual worker/client realtime transport will consume the documented event contract in a later stage.
+- Deviations from PRD: none intentional for Tahap 3 scope.
+- User approval needed: approve Tahap 3 before starting Tahap 4 Backend Inspector.
+
+### Notes
+- GitHub issue: #2 Tahap 3 - Backend Supervisor / Leader.

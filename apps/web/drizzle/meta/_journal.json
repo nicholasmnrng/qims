@@ -15,6 +15,13 @@
       "when": 1780812432914,
       "tag": "0001_damp_wilson_fisk",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1780814303350,
+      "tag": "0002_peaceful_gertrude_yorkes",
+      "breakpoints": true
     }
   ]
 }
