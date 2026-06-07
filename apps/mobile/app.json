@@ -1,0 +1,22 @@
+{
+  "expo": {
+    "name": "QIMS Inspector",
+    "slug": "qims-inspector",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "qims",
+    "userInterfaceStyle": "dark",
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": false
+    },
+    "android": {
+      "package": "local.qims.inspector"
+    },
+    "extra": {
+      "defaultApiUrl": "http://127.0.0.1:3000"
+    }
+  }
+}

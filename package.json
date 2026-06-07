@@ -14,7 +14,10 @@
     "db:generate": "npm --workspace apps/web run db:generate",
     "db:migrate": "npm --workspace apps/web run db:migrate",
     "db:seed": "npm --workspace apps/web run db:seed",
-    "db:seed:demo": "npm --workspace apps/web run db:seed:demo"
+    "db:seed:demo": "npm --workspace apps/web run db:seed:demo",
+    "mobile:start": "npm --workspace apps/mobile run start",
+    "mobile:typecheck": "npm --workspace apps/mobile run typecheck",
+    "mobile:build": "npm --workspace apps/mobile run build"
   },
   "devDependencies": {
     "eslint": "^9.39.1"

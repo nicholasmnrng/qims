@@ -247,4 +247,24 @@ Log ini menjadi catatan utama pekerjaan agent. Semua agent wajib menambah entry 
 - Requirements not yet satisfied: demo accounts are for local QA only and should not be used as production credentials.
 - Assumptions made: `QimsDemo123!` is acceptable as a documented local default password and can be overridden via `QIMS_DEMO_PASSWORD`.
 - Deviations from PRD: none intentional.
+
+## 2026-06-08 - Tahap 9 Mobile App Inspector
+
+### PRD Validation
+- PRD sections checked before work: 7.2 Inspector Mobile Home, 7.4 Task & Priority Management, 7.6 SOP & Procedure Management, 7.9 Handover Shift, 7.10 Issue Reporting, 7.11 Notification Center, 8.1 Inspector Mobile Flow, 9.5 Layout Mobile App, 10 Notification UX, 17 Offline & Sync Requirements, 18 Eco-Mode Requirements, 24 Definition of Done, 25 Recommended UI Pages.
+- Agent skill used: `agent-skills/frontend-agent/SKILL.md` and `agent-skills/stage-delivery-agent/SKILL.md`.
+- Backend APIs consumed: `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/me`, `GET /api/inspector/today-mission`, `GET /api/tasks`, `POST /api/tasks/:id/acknowledge`, `PATCH /api/tasks/:id/status`, `GET /api/procedures`, `POST /api/procedure-versions/:id/acknowledge`, `GET /api/handovers`, `POST /api/handovers`, `GET /api/issues`, `POST /api/issues`, `GET /api/notifications`, `PATCH /api/notifications/:id/read`, `GET /api/inspector/settings`, `PATCH /api/inspector/settings`, `POST /api/offline-drafts`.
+- Screens/components changed: created Expo workspace `apps/mobile`, login screen, Today Mission, Tasks, SOP, Handover, Issues, Notifications, Profile/Eco Mode, tab navigation, offline indicator, AsyncStorage cache and draft handling.
+- Loading/empty/error/permission states implemented: boot loading, sync loading, empty states for task/SOP/notification lists, login error state, offline/cached mission message, Inspector-only login guard.
+- Responsive or mobile checks run: `npm run mobile:typecheck`; `npm run mobile:build` Expo Android export; API login contract check for `inspector@qims.local`; no physical/emulator screenshot QA available in this session.
+- Tests/checks run: `npm run mobile:typecheck` passed; `npm run mobile:build` passed; Inspector login contract passed; `npm run typecheck` passed; `npm test` passed with 9 files and 40 tests; `npm run lint` passed; `npm run build` passed; `npm audit --audit-level=high` passed.
+- PRD sections checked after work: 7.2, 7.4, 7.6, 7.9, 7.10, 7.11, 8.1, 9.5, 10, 17, 18, 24, 25.
+- Requirements satisfied: Inspector can login, see Today Mission, access main actions within two taps via tabs/cards, view/update own tasks, acknowledge SOP, write local handover draft, save offline draft, submit handover, report issue, read notifications, update Eco-mode settings, and view cached mission when refresh fails.
+- Requirements not yet satisfied: physical device/emulator manual QA, automatic background sync queue, Expo push notification registration, attachment/image compression/upload, and full native E2E test automation are not implemented in this baseline.
+- Assumptions made: AsyncStorage is acceptable for MVP local cache/draft; API URL is user-configurable because local mobile device networking differs by emulator/device; React Native cookie handling is implemented by storing the Better Auth cookie from login and attaching it on API requests.
+- Deviations from PRD: none intentional for Tahap 9 baseline; push notifications and attachments are deferred because backend hardening documented worker/storage contracts but runtime providers are not configured yet.
+- User approval needed: approve Tahap 9 before starting Final MVP QA.
+
+### Notes
+- GitHub issue: #8 Tahap 9 - Mobile App Inspector.
 - User approval needed: approve Tahap 8 before starting mobile app.
