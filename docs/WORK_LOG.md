@@ -231,3 +231,20 @@ Log ini menjadi catatan utama pekerjaan agent. Semua agent wajib menambah entry 
 
 ### Notes
 - GitHub issue: #7 Tahap 8 - Frontend Web.
+
+## 2026-06-08 - Tahap 8 Frontend Web Demo Accounts
+
+### PRD Validation
+- PRD sections checked before work: 4 Target Users & Roles, 7.1 Authentication & Authorization, 8 User Flows, 15 Security Requirements, 24 Definition of Done.
+- Agent skill used: `agent-skills/frontend-agent/SKILL.md` and `agent-skills/stage-delivery-agent/SKILL.md`.
+- Backend APIs consumed: Better Auth email/password sign-up through existing server auth API in seed script; login remains `POST /api/auth/login`.
+- Screens/components changed: no UI screen change; documented demo login accounts for frontend QA.
+- Loading/empty/error/permission states implemented: unchanged from Tahap 8 baseline.
+- Responsive or mobile checks run: not applicable for seed-only update.
+- Tests/checks run: `npm run db:seed:demo` passed and created/updated 5 demo users; database verification confirmed `super_admin`, `qa_manager`, `supervisor`, `inspector`, and `auditor` accounts are active; `npm run typecheck` passed; `npm test` passed with 9 files and 40 tests; `npm run lint` passed; `npm run build` passed; `npm audit --audit-level=high` passed.
+- PRD sections checked after work: 4 Target Users & Roles, 7.1 Authentication & Authorization, 8 User Flows, 15 Security Requirements, 24 Definition of Done.
+- Requirements satisfied: local QA now has explicit login accounts for every PRD role; default seed remains free of demo users; demo seed can be rerun idempotently; Better Auth adapter schema now matches table model names used by the auth config.
+- Requirements not yet satisfied: demo accounts are for local QA only and should not be used as production credentials.
+- Assumptions made: `QimsDemo123!` is acceptable as a documented local default password and can be overridden via `QIMS_DEMO_PASSWORD`.
+- Deviations from PRD: none intentional.
+- User approval needed: approve Tahap 8 before starting mobile app.

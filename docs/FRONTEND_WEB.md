@@ -29,6 +29,34 @@ Login menggunakan:
 
 Jika session tidak valid, user melihat login panel. Jika session valid, dashboard menampilkan menu sesuai permission dari `/api/me`.
 
+## Demo Login Accounts
+
+Normal `npm run db:seed` tidak membuat akun demo agar tidak membuat password default tanpa sengaja.
+
+Untuk local QA, jalankan:
+
+```bash
+npm run db:seed:demo
+```
+
+Default password:
+
+```txt
+QimsDemo123!
+```
+
+Password dapat dioverride dengan env `QIMS_DEMO_PASSWORD`.
+
+Accounts:
+
+| Role | Email |
+| --- | --- |
+| Super Admin | `superadmin@qims.local` |
+| QA Manager | `qamanager@qims.local` |
+| Supervisor | `supervisor@qims.local` |
+| Inspector | `inspector@qims.local` |
+| Auditor | `auditor@qims.local` |
+
 ## Role-Based Navigation
 
 Menu disembunyikan berdasarkan permission:

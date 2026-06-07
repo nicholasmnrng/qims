@@ -1,5 +1,8 @@
 import "../src/server/load-env";
 
+import { eq } from "drizzle-orm";
+
+import { auth } from "../src/server/auth";
 import { db } from "../src/server/db";
 import {
   permissions as permissionsTable,
@@ -7,6 +10,7 @@ import {
   roles,
   shifts,
   systemSettings,
+  users,
   type UserRole,
 } from "../src/server/db/schema";
 import {
@@ -66,6 +70,79 @@ const defaultShiftRows = [
   },
 ];
 
+const demoPassword = process.env.QIMS_DEMO_PASSWORD ?? "QimsDemo123!";
+const seedDemoUsers = process.argv.includes("--demo-users");
+
+const demoUsers: Array<{
+  name: string;
+  email: string;
+  employeeId: string;
+  role: UserRole;
+}> = [
+  {
+    name: "QIMS Super Admin",
+    email: "superadmin@qims.local",
+    employeeId: "QIMS-SA-001",
+    role: "super_admin",
+  },
+  {
+    name: "QIMS QA Manager",
+    email: "qamanager@qims.local",
+    employeeId: "QIMS-QA-001",
+    role: "qa_manager",
+  },
+  {
+    name: "QIMS Supervisor",
+    email: "supervisor@qims.local",
+    employeeId: "QIMS-SPV-001",
+    role: "supervisor",
+  },
+  {
+    name: "QIMS Inspector",
+    email: "inspector@qims.local",
+    employeeId: "QIMS-INS-001",
+    role: "inspector",
+  },
+  {
+    name: "QIMS Auditor",
+    email: "auditor@qims.local",
+    employeeId: "QIMS-AUD-001",
+    role: "auditor",
+  },
+];
+
+async function seedDemoUser(user: (typeof demoUsers)[number]) {
+  const [existing] = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(eq(users.email, user.email))
+    .limit(1);
+
+  const userId =
+    existing?.id ??
+    (
+      await auth.api.signUpEmail({
+        body: {
+          name: user.name,
+          email: user.email,
+          password: demoPassword,
+        },
+        headers: new Headers(),
+      })
+    ).user.id;
+
+  await db
+    .update(users)
+    .set({
+      name: user.name,
+      employeeId: user.employeeId,
+      role: user.role,
+      status: "active",
+      updatedAt: new Date(),
+    })
+    .where(eq(users.id, userId));
+}
+
 async function seed() {
   await db
     .insert(roles)
@@ -105,11 +182,24 @@ async function seed() {
       },
     })
     .onConflictDoNothing();
+
+  if (seedDemoUsers) {
+    for (const user of demoUsers) {
+      await seedDemoUser(user);
+    }
+  }
 }
 
 seed()
   .then(() => {
-    console.log("QIMS backend foundation seed completed.");
+    console.log(
+      seedDemoUsers
+        ? "QIMS seed completed with demo users."
+        : "QIMS backend foundation seed completed.",
+    );
+    if (seedDemoUsers) {
+      console.log(`Demo password: ${demoPassword}`);
+    }
     process.exit(0);
   })
   .catch((error) => {
