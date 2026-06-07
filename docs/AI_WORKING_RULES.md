@@ -10,8 +10,10 @@ Sebelum bekerja, agent wajib:
 
 - Membaca `docs/PRD.md`, minimal section yang relevan dengan task.
 - Membaca skill yang relevan di `agent-skills/`.
+- Membaca `agent-skills/stage-delivery-agent/SKILL.md` untuk aturan issue, commit, push, dan laporan tahap.
 - Mencatat section PRD yang dipakai sebagai dasar kerja.
 - Membandingkan task dengan `docs/TASK_ROADMAP.md`.
+- Memastikan GitHub issue untuk tahap/task sudah ada sebelum implementasi.
 - Meminta klarifikasi jika task bertentangan dengan PRD.
 
 Sesudah bekerja, agent wajib:
@@ -20,6 +22,7 @@ Sesudah bekerja, agent wajib:
 - Membandingkan hasil kerja dengan functional requirements, acceptance criteria, security, performance, offline/eco-mode jika relevan, dan Definition of Done.
 - Menulis validasi di `docs/WORK_LOG.md`.
 - Membuat laporan detail di `docs/agent-reports/` jika pekerjaan panjang.
+- Commit dan push perubahan yang sudah selesai dan disetujui scope-nya ke GitHub.
 - Menyebutkan gap, risiko, asumsi, dan approval yang dibutuhkan.
 
 ## Anti-Hallucination Rules
@@ -31,6 +34,8 @@ Agent tidak boleh:
 - Mengubah urutan backend-first menjadi frontend-first.
 - Menggabungkan banyak role sekaligus tanpa approval.
 - Melanjutkan tahap berikutnya tanpa laporan dan approval user.
+- Mengerjakan tahap tanpa GitHub issue tracking.
+- Mengakhiri tahap tanpa commit dan push, kecuali user meminta berhenti sebelum tahap selesai.
 - Menghapus atau mengubah PRD canonical tanpa instruksi eksplisit.
 
 Agent wajib:
@@ -39,6 +44,7 @@ Agent wajib:
 - Menyebutkan jika ada kebutuhan yang belum terpenuhi.
 - Menyebutkan jika test tidak dijalankan.
 - Menjaga scope tetap kecil dan selesai per tahap.
+- Melaporkan issue number, commit hash, dan push status setelah tahap selesai.
 
 ## Work Order
 
@@ -111,3 +117,21 @@ Gunakan format ini di `docs/WORK_LOG.md`:
 ## User Approval Rule
 
 Agent boleh menyelesaikan task yang diminta user, tetapi tidak boleh lanjut ke tahap berikutnya sebelum user menyetujui hasil tahap berjalan.
+
+## GitHub Delivery Rule
+
+Setiap tahap pengerjaan wajib memiliki GitHub issue di `nicholasmnrng/qims`.
+
+Sebelum mulai tahap:
+
+- Cari issue yang sudah ada untuk tahap tersebut.
+- Jika belum ada, buat issue baru dengan scope, acceptance criteria, PRD sections, checks, dan approval rule.
+- Gunakan issue tersebut sebagai tracking utama selama tahap berjalan.
+
+Setelah tahap selesai:
+
+- Jalankan checks yang relevan.
+- Update `docs/WORK_LOG.md` dan report detail jika perlu.
+- Commit semua perubahan aman, tanpa `.env`, secret, cache, atau file lokal.
+- Push commit ke `origin main` kecuali user meminta branch lain.
+- Laporkan issue number, commit hash, push status, checks, dan PRD validation.

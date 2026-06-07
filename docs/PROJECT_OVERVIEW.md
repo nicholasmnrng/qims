@@ -47,3 +47,11 @@ Phase 2 dan Phase 3 tidak boleh dikerjakan sebelum Phase 1 MVP disetujui user.
 - Work log: `docs/WORK_LOG.md`
 - Agent reports: `docs/agent-reports/`
 - Agent skills: `agent-skills/`
+- GitHub issue index: `docs/GITHUB_ISSUES.md`
+
+## GitHub Delivery
+
+- Repository: `https://github.com/nicholasmnrng/qims`
+- Every roadmap stage must have a GitHub issue before implementation.
+- Every completed stage must be committed and pushed to GitHub.
+- Final stage reports must include issue number, commit hash, checks, and PRD validation.

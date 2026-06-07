@@ -14,6 +14,8 @@ Urutan kerja wajib:
 
 Agent tidak boleh melompati tahap tanpa approval user.
 
+Setiap tahap wajib memiliki GitHub issue sebelum dikerjakan. Setelah tahap selesai, agent wajib update work log, commit, push ke GitHub, dan melaporkan issue number serta commit hash ke user.
+
 ## Tahap 0: Dokumentasi dan Agent Skill
 
 Output:
@@ -23,11 +25,13 @@ Output:
 - `docs/SYSTEM_ARCHITECTURE.md`
 - `docs/TASK_ROADMAP.md`
 - `docs/AI_WORKING_RULES.md`
+- `docs/GITHUB_ISSUES.md`
 - `docs/WORK_LOG.md`
 - `docs/agent-reports/README.md`
 - `agent-skills/backend-agent/SKILL.md`
 - `agent-skills/frontend-agent/SKILL.md`
 - `agent-skills/qa-agent/SKILL.md`
+- `agent-skills/stage-delivery-agent/SKILL.md`
 
 Acceptance:
 
@@ -35,6 +39,7 @@ Acceptance:
 - `docs/PRD.md` menjadi canonical PRD.
 - Agent skill terpisah dari laporan.
 - Aturan baca PRD sebelum dan sesudah kerja tertulis jelas.
+- Aturan GitHub issue, commit, push, dan laporan tahap tertulis jelas.
 - Belum ada implementasi fitur aplikasi.
 
 ## Tahap 1: Backend Foundation
@@ -63,6 +68,8 @@ Acceptance:
 
 ## Tahap 2: Backend Super Admin
 
+GitHub issue: https://github.com/nicholasmnrng/qims/issues/1
+
 Scope:
 
 - User management.
@@ -80,6 +87,8 @@ Acceptance:
 - Test permission negatif tersedia.
 
 ## Tahap 3: Backend Supervisor / Leader
+
+GitHub issue: https://github.com/nicholasmnrng/qims/issues/2
 
 Scope:
 
@@ -105,6 +114,8 @@ Acceptance:
 
 ## Tahap 4: Backend Inspector
 
+GitHub issue: https://github.com/nicholasmnrng/qims/issues/3
+
 Scope:
 
 - Today's Mission API.
@@ -127,6 +138,8 @@ Acceptance:
 
 ## Tahap 5: Backend QA Manager
 
+GitHub issue: https://github.com/nicholasmnrng/qims/issues/4
+
 Scope:
 
 - Dashboard summary semua shift.
@@ -146,6 +159,8 @@ Acceptance:
 
 ## Tahap 6: Backend Auditor / Viewer
 
+GitHub issue: https://github.com/nicholasmnrng/qims/issues/5
+
 Scope:
 
 - Read-only reports.
@@ -160,6 +175,8 @@ Acceptance:
 - Test negatif untuk write endpoint utama lulus.
 
 ## Tahap 7: Backend Hardening
+
+GitHub issue: https://github.com/nicholasmnrng/qims/issues/6
 
 Scope:
 
@@ -180,6 +197,8 @@ Acceptance:
 
 ## Tahap 8: Frontend Web
 
+GitHub issue: https://github.com/nicholasmnrng/qims/issues/7
+
 Scope:
 
 - Login and session handling.
@@ -198,6 +217,8 @@ Acceptance:
 - Manual QA per role lulus.
 
 ## Tahap 9: Mobile App Inspector
+
+GitHub issue: https://github.com/nicholasmnrng/qims/issues/8
 
 Scope:
 
@@ -220,6 +241,8 @@ Acceptance:
 - Mobile UI ringan dan low-data friendly.
 
 ## Tahap 10: Final MVP QA
+
+GitHub issue: https://github.com/nicholasmnrng/qims/issues/9
 
 Scope:
 

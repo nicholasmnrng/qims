@@ -75,3 +75,30 @@ Log ini menjadi catatan utama pekerjaan agent. Semua agent wajib menambah entry 
 ### Notes
 - Git repository is active at `D:/QIMS`.
 - `git status --short --untracked-files=no` shows initial project files staged plus modified files from this verification pass.
+
+## 2026-06-07 - Stage Delivery Skill and GitHub Issues
+
+### PRD Validation
+- PRD sections checked before work: 21 MVP Production Release Scope, 22 Acceptance Criteria Global, 24 Definition of Done, and `docs/TASK_ROADMAP.md`.
+- Agent skill used: `skill-creator`, plus existing project delivery rules.
+- Work completed: created `stage-delivery-agent` skill, updated AI working rules and roadmap to require GitHub issues, commit, push, and reporting per stage, created GitHub labels, and created GitHub issues for Tahap 2 through Tahap 10.
+- Files changed: `agent-skills/stage-delivery-agent/SKILL.md`, `docs/AI_WORKING_RULES.md`, `docs/TASK_ROADMAP.md`, `docs/PROJECT_OVERVIEW.md`, `docs/GITHUB_ISSUES.md`, `docs/WORK_LOG.md`.
+- Tests/checks run: `python C:\Users\user\.codex\skills\.system\skill-creator\scripts\quick_validate.py .\agent-skills\stage-delivery-agent` passed; `gh issue list` confirmed no existing issues before creation; GitHub issues #1-#9 created.
+- PRD sections checked after work: 21 MVP Production Release Scope, 22 Acceptance Criteria Global, 24 Definition of Done, and `docs/TASK_ROADMAP.md`.
+- Requirements satisfied: future stages now have issue tracking, delivery skill, commit/push rule, and docs index before Tahap 2 starts.
+- Requirements not yet satisfied: Tahap 2 implementation has not started yet.
+- Assumptions made: Tahap 0 and Tahap 1 remain historical completed work; GitHub issues are created for remaining Tahap 2-10.
+- Deviations from PRD: none intentional; this is process governance before feature implementation.
+- User approval needed: approve this delivery workflow update before starting Tahap 2 implementation under issue #1.
+
+### Notes
+- Created issues:
+  - #1 Tahap 2 - Backend Super Admin
+  - #2 Tahap 3 - Backend Supervisor / Leader
+  - #3 Tahap 4 - Backend Inspector
+  - #4 Tahap 5 - Backend QA Manager
+  - #5 Tahap 6 - Backend Auditor / Viewer
+  - #6 Tahap 7 - Backend Hardening
+  - #7 Tahap 8 - Frontend Web
+  - #8 Tahap 9 - Mobile App Inspector
+  - #9 Tahap 10 - Final MVP QA
