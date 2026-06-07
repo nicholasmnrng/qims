@@ -8,7 +8,7 @@ describe("auditor validation", () => {
       sopAcknowledgementListQuerySchema.parse({
         procedureId: "11111111-1111-4111-8111-111111111111",
         procedureVersionId: "22222222-2222-4222-8222-222222222222",
-        userId: "33333333-3333-4333-8333-333333333333",
+        userId: "better-auth-user-id",
         status: "understood",
         dateFrom: "2026-06-01",
         dateTo: "2026-06-08",

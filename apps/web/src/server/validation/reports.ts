@@ -7,12 +7,14 @@ import {
   taskStatusValues,
 } from "@/server/db/schema";
 
+const authUserIdSchema = z.string().trim().min(1).max(160);
+
 export const reportFiltersSchema = z.object({
   dateFrom: z.string().date().optional(),
   dateTo: z.string().date().optional(),
   shiftId: z.string().uuid().optional(),
   areaId: z.string().uuid().optional(),
-  inspectorId: z.string().uuid().optional(),
+  inspectorId: authUserIdSchema.optional(),
   status: z.string().trim().optional(),
   severity: z.enum(issueSeverityValues).optional(),
   priority: z.enum(taskPriorityValues).optional(),

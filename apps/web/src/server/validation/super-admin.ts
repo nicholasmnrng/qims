@@ -10,6 +10,8 @@ import {
   userStatusValues,
 } from "@/server/db/schema";
 
+const authUserIdSchema = z.string().trim().min(1).max(160);
+
 export const userListQuerySchema = z.object({
   q: z.string().trim().optional(),
   role: z.enum(userRoleValues).optional(),
@@ -151,7 +153,7 @@ export const updateShiftSchema = createShiftSchema
   );
 
 export const auditLogListQuerySchema = z.object({
-  actorId: z.string().uuid().optional(),
+  actorId: authUserIdSchema.optional(),
   action: z.string().trim().min(1).max(120).optional(),
   entityType: z.string().trim().min(1).max(120).optional(),
   entityId: z.string().trim().min(1).max(160).optional(),

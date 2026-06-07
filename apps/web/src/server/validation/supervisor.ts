@@ -13,16 +13,18 @@ import {
   taskStatusValues,
 } from "@/server/db/schema";
 
+const authUserIdSchema = z.string().trim().min(1).max(160);
+
 export const listByOperationalFiltersSchema = z.object({
   areaId: z.string().uuid().optional(),
   shiftId: z.string().uuid().optional(),
-  userId: z.string().uuid().optional(),
+  userId: authUserIdSchema.optional(),
   workDate: z.string().date().optional(),
   status: z.string().trim().optional(),
 });
 
 export const createShiftAssignmentSchema = z.object({
-  userId: z.string().uuid(),
+  userId: authUserIdSchema,
   shiftId: z.string().uuid(),
   areaId: z.string().uuid(),
   workDate: z.string().date(),
@@ -72,7 +74,7 @@ export const createTaskSchema = z.object({
   title: z.string().trim().min(1).max(160),
   description: z.string().trim().max(2000).nullable().optional(),
   areaId: z.string().uuid(),
-  assignedUserId: z.string().uuid().nullable().optional(),
+  assignedUserId: authUserIdSchema.nullable().optional(),
   shiftAssignmentId: z.string().uuid().nullable().optional(),
   priority: z.enum(taskPriorityValues).default("medium"),
   status: z.enum(taskStatusValues).default("draft"),
@@ -135,7 +137,7 @@ export const publishProcedureVersionSchema = z.object({
 });
 
 export const upsertSkillMatrixSchema = z.object({
-  userId: z.string().uuid(),
+  userId: authUserIdSchema,
   areaId: z.string().uuid(),
   skillLevel: z.enum(skillLevelValues),
   assessedAt: z.string().datetime().nullable().optional(),
@@ -146,7 +148,7 @@ export const upsertSkillMatrixSchema = z.object({
 
 export const listSkillMatrixQuerySchema = z.object({
   areaId: z.string().uuid().optional(),
-  userId: z.string().uuid().optional(),
+  userId: authUserIdSchema.optional(),
   level: z.enum(skillLevelValues).optional(),
 });
 

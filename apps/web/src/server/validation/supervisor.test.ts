@@ -15,7 +15,7 @@ describe("supervisor validation", () => {
   it("requires a reason for shift assignment changes", () => {
     expect(() =>
       createShiftAssignmentSchema.parse({
-        userId: "11111111-1111-4111-8111-111111111111",
+        userId: "better-auth-user-id",
         shiftId: "22222222-2222-4222-8222-222222222222",
         areaId: "33333333-3333-4333-8333-333333333333",
         workDate: "2026-06-07",
@@ -57,7 +57,7 @@ describe("supervisor validation", () => {
   it("validates skill matrix level against known PRD levels", () => {
     expect(
       upsertSkillMatrixSchema.parse({
-        userId: "11111111-1111-4111-8111-111111111111",
+        userId: "better-auth-user-id",
         areaId: "33333333-3333-4333-8333-333333333333",
         skillLevel: "competent",
         reason: "Assessment update",

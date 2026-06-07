@@ -7,10 +7,12 @@ export const sopAcknowledgementStatusValues = [
   "critical_confirmed",
 ] as const;
 
+const authUserIdSchema = z.string().trim().min(1).max(160);
+
 export const sopAcknowledgementListQuerySchema = z.object({
   procedureId: z.string().uuid().optional(),
   procedureVersionId: z.string().uuid().optional(),
-  userId: z.string().uuid().optional(),
+  userId: authUserIdSchema.optional(),
   status: z.enum(sopAcknowledgementStatusValues).optional(),
   dateFrom: z.string().date().optional(),
   dateTo: z.string().date().optional(),
