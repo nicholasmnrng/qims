@@ -7,13 +7,22 @@ import {
   listProcedures,
   requireOperationalPermission,
 } from "@/server/api/supervisor";
+import { listOwnProcedures } from "@/server/api/inspector";
+import { requireSession } from "@/server/auth/session";
+import { requirePermission } from "@/server/auth/rbac";
 import { db } from "@/server/db";
 import { procedures } from "@/server/db/schema";
 import { createProcedureSchema } from "@/server/validation/supervisor";
 
 export async function GET(request: Request) {
   try {
-    await requireOperationalPermission(request, "sop:manage");
+    const actor = await requireSession(request);
+    if (actor.role === "inspector") {
+      requirePermission(actor, "sop:acknowledge");
+      return ok(await listOwnProcedures(request, actor.id));
+    }
+
+    requirePermission(actor, "sop:manage");
     return ok(await listProcedures(request));
   } catch (error) {
     return handleApiError(error);

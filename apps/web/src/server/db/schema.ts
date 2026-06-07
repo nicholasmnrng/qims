@@ -107,6 +107,13 @@ export const notificationDeliveryStatusValues = [
   "delivered",
   "failed",
 ] as const;
+export const offlineDraftTypeValues = ["handover", "issue", "task_note"] as const;
+export const offlineDraftStatusValues = [
+  "pending",
+  "synced",
+  "conflict",
+  "failed",
+] as const;
 
 export const userRoleEnum = pgEnum("user_role", userRoleValues);
 export const userStatusEnum = pgEnum("user_status", userStatusValues);
@@ -137,6 +144,11 @@ export const notificationPriorityEnum = pgEnum(
 export const notificationDeliveryStatusEnum = pgEnum(
   "notification_delivery_status",
   notificationDeliveryStatusValues,
+);
+export const offlineDraftTypeEnum = pgEnum("offline_draft_type", offlineDraftTypeValues);
+export const offlineDraftStatusEnum = pgEnum(
+  "offline_draft_status",
+  offlineDraftStatusValues,
 );
 
 export const users = pgTable(
@@ -583,6 +595,34 @@ export const procedureVersionTargets = pgTable(
   ],
 );
 
+export const procedureAcknowledgements = pgTable(
+  "procedure_acknowledgements",
+  {
+    id: text("id").primaryKey(),
+    procedureVersionId: text("procedure_version_id")
+      .notNull()
+      .references(() => procedureVersions.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    readAt: timestamp("read_at", { withTimezone: true }),
+    understoodAt: timestamp("understood_at", { withTimezone: true }),
+    criticalConfirmedAt: timestamp("critical_confirmed_at", { withTimezone: true }),
+    note: text("note"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("procedure_ack_user_version_idx").on(
+      table.userId,
+      table.procedureVersionId,
+    ),
+    index("procedure_ack_version_id_idx").on(table.procedureVersionId),
+    index("procedure_ack_user_id_idx").on(table.userId),
+    index("procedure_ack_read_at_idx").on(table.readAt),
+  ],
+);
+
 export const handovers = pgTable(
   "handovers",
   {
@@ -737,6 +777,50 @@ export const notificationRecipients = pgTable(
   ],
 );
 
+export const offlineDrafts = pgTable(
+  "offline_drafts",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    localDraftId: text("local_draft_id").notNull(),
+    draftType: offlineDraftTypeEnum("draft_type").notNull(),
+    payload: jsonb("payload").$type<Record<string, unknown>>().notNull(),
+    status: offlineDraftStatusEnum("status").notNull().default("pending"),
+    syncedEntityType: text("synced_entity_type"),
+    syncedEntityId: text("synced_entity_id"),
+    errorCode: text("error_code"),
+    errorMessage: text("error_message"),
+    clientUpdatedAt: timestamp("client_updated_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("offline_drafts_user_local_idx").on(table.userId, table.localDraftId),
+    index("offline_drafts_user_id_idx").on(table.userId),
+    index("offline_drafts_status_idx").on(table.status),
+    index("offline_drafts_type_idx").on(table.draftType),
+    index("offline_drafts_updated_at_idx").on(table.updatedAt),
+  ],
+);
+
+export const inspectorSettings = pgTable(
+  "inspector_settings",
+  {
+    userId: text("user_id")
+      .primaryKey()
+      .references(() => users.id, { onDelete: "cascade" }),
+    ecoModeEnabled: boolean("eco_mode_enabled").notNull().default(true),
+    lowDataModeEnabled: boolean("low_data_mode_enabled").notNull().default(true),
+    compactModeEnabled: boolean("compact_mode_enabled").notNull().default(true),
+    darkModePreferred: boolean("dark_mode_preferred").notNull().default(true),
+    backgroundSyncEnabled: boolean("background_sync_enabled").notNull().default(false),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index("inspector_settings_updated_at_idx").on(table.updatedAt)],
+);
+
 export const schema = {
   users,
   sessions,
@@ -759,12 +843,15 @@ export const schema = {
   procedures,
   procedureVersions,
   procedureVersionTargets,
+  procedureAcknowledgements,
   handovers,
   handoverItems,
   issueReports,
   issueEvents,
   notifications,
   notificationRecipients,
+  offlineDrafts,
+  inspectorSettings,
 };
 
 export type UserRole = (typeof userRoleValues)[number];
@@ -774,3 +861,5 @@ export type SkillLevel = (typeof skillLevelValues)[number];
 export type TaskStatus = (typeof taskStatusValues)[number];
 export type TaskPriority = (typeof taskPriorityValues)[number];
 export type IssueStatus = (typeof issueStatusValues)[number];
+export type OfflineDraftType = (typeof offlineDraftTypeValues)[number];
+export type OfflineDraftStatus = (typeof offlineDraftStatusValues)[number];

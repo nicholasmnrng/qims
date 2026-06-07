@@ -1,6 +1,9 @@
 import { handleApiError } from "@/server/api/errors";
 import { ok } from "@/server/api/response";
-import { getIssueDetail, requireOperationalPermission } from "@/server/api/supervisor";
+import { getIssueDetail } from "@/server/api/supervisor";
+import { getOwnIssueDetailOrThrow } from "@/server/api/inspector";
+import { requireSession } from "@/server/auth/session";
+import { requirePermission } from "@/server/auth/rbac";
 
 type RouteContext = {
   params: Promise<{ id: string }>;
@@ -8,8 +11,14 @@ type RouteContext = {
 
 export async function GET(request: Request, context: RouteContext) {
   try {
-    await requireOperationalPermission(request, "issues:manage");
     const { id } = await context.params;
+    const actor = await requireSession(request);
+    if (actor.role === "inspector") {
+      requirePermission(actor, "issues:create-own");
+      return ok(await getOwnIssueDetailOrThrow(actor.id, id));
+    }
+
+    requirePermission(actor, "issues:manage");
     return ok(await getIssueDetail(id));
   } catch (error) {
     return handleApiError(error);

@@ -10,13 +10,22 @@ import {
   requireOperationalPermission,
   writeTaskEvent,
 } from "@/server/api/supervisor";
+import { listOwnTasks } from "@/server/api/inspector";
+import { requireSession } from "@/server/auth/session";
+import { requirePermission } from "@/server/auth/rbac";
 import { db } from "@/server/db";
 import { tasks } from "@/server/db/schema";
 import { createTaskSchema } from "@/server/validation/supervisor";
 
 export async function GET(request: Request) {
   try {
-    await requireOperationalPermission(request, "tasks:manage");
+    const actor = await requireSession(request);
+    if (actor.role === "inspector") {
+      requirePermission(actor, "tasks:update-own");
+      return ok(await listOwnTasks(request, actor.id));
+    }
+
+    requirePermission(actor, "tasks:manage");
     return ok(await listTasks(request));
   } catch (error) {
     return handleApiError(error);
