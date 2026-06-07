@@ -1,0 +1,77 @@
+# QIMS Work Log
+
+Log ini menjadi catatan utama pekerjaan agent. Semua agent wajib menambah entry setelah bekerja.
+
+## 2026-06-07 - Tahap 0 Dokumentasi dan Agent Skill
+
+### PRD Validation
+- PRD sections checked before work: 1 Product Overview, 4 Target Users and Roles, 5 Product Scope, 11 Architecture, 12 Recommended Tech Stack, 13 Database Schema, 14 API Specification, 15 Security Requirements, 16 Performance Requirements, 17 Offline and Sync Requirements, 18 Eco-Mode Requirements, 21 MVP Production Release Scope, 22 Acceptance Criteria Global, 23 Final Production Notes, 24 Definition of Done.
+- Agent skill used: skill-creator guidance for local `SKILL.md` structure.
+- Work completed: created documentation and project-local agent skill structure for QIMS Phase 0.
+- Files changed: `docs/PRD.md`, `docs/PROJECT_OVERVIEW.md`, `docs/SYSTEM_ARCHITECTURE.md`, `docs/TASK_ROADMAP.md`, `docs/AI_WORKING_RULES.md`, `docs/WORK_LOG.md`, `docs/agent-reports/README.md`, `agent-skills/backend-agent/SKILL.md`, `agent-skills/frontend-agent/SKILL.md`, `agent-skills/qa-agent/SKILL.md`.
+- Tests/checks run: documentation structure and PRD keyword checks only; no application tests because no application code exists yet.
+- PRD sections checked after work: 11 Architecture, 12 Recommended Tech Stack, 15 Security Requirements, 16 Performance Requirements, 17 Offline and Sync Requirements, 18 Eco-Mode Requirements, 21 MVP Production Release Scope, 22 Acceptance Criteria Global, 24 Definition of Done.
+- Requirements satisfied: documentation-first setup, canonical PRD under `docs/`, separate agent skill folder, anti-hallucination rule, backend-first roadmap, reporting rule.
+- Requirements not yet satisfied: backend foundation and all product features are not started yet by design.
+- Assumptions made: root `prd.md` is preserved and copied to `docs/PRD.md`; `docs/PRD.md` is canonical for future work.
+- Deviations from PRD: none for Tahap 0; this stage creates project governance docs before implementation.
+- User approval needed: approve Tahap 0 before starting Backend Foundation.
+
+### Notes
+- Do not start feature implementation until user approves the documentation and agent skill baseline.
+
+## 2026-06-07 - Tahap 1 Backend Foundation
+
+### PRD Validation
+- PRD sections checked before work: 7.1 Authentication and Authorization, 11 Architecture, 12 Recommended Tech Stack, 13 Database Schema, 14.1 Auth, 15 Security Requirements, 16.3 Backend, 21 MVP Production Release Scope, 22 Acceptance Criteria Global, 23.1 Keputusan Teknis Final, 24 Definition of Done.
+- Agent skill used: `agent-skills/backend-agent/SKILL.md`.
+- Work completed: created npm workspace monorepo, Next.js App Router API foundation, Better Auth configuration, Drizzle PostgreSQL schema/config, RBAC helpers, audit log helper/schema, auth BFF routes, health route, `/api/me`, validation helper, pagination helper, seed script, API foundation docs, and basic RBAC/pagination unit test files.
+- Files changed: `package.json`, `.npmrc`, `.gitignore`, `.env.example`, `apps/web/package.json`, `apps/web/next.config.ts`, `apps/web/tsconfig.json`, `apps/web/drizzle.config.ts`, `apps/web/src/app/**`, `apps/web/src/server/**`, `apps/web/scripts/seed.ts`, `docs/API_FOUNDATION.md`, `docs/agent-reports/2026-06-07-backend-foundation.md`.
+- Tests/checks run: PRD keyword check, file structure check, static risk search for `TODO`/`FIXME`/unsafe cast, dependency install attempt. `npm install` failed because C: drive ran out of space (`ENOSPC`), so `typecheck`, `test`, and `db:generate` could not be run.
+- PRD sections checked after work: 7.1 Authentication and Authorization, 11 Architecture, 12 Recommended Tech Stack, 13 Database Schema, 14.1 Auth, 15 Security Requirements, 16.3 Backend, 21 MVP Production Release Scope, 22 Acceptance Criteria Global, 23.1 Keputusan Teknis Final, 24 Definition of Done.
+- Requirements satisfied: backend-first scaffold, Next.js route handler baseline, Better Auth config, Drizzle PostgreSQL schema/config, session/RBAC helper, audit log schema/helper, login/logout/failed-login audit calls, pagination helper, seed roles/permissions script, API documentation.
+- Requirements not yet satisfied: dependencies are not installed due disk space, TypeScript/test/migration generation not verified, role-change audit is not attached to a Super Admin role-management endpoint yet, PostgreSQL migration/seed not run.
+- Assumptions made: Better Auth native routes remain mounted at `/api/auth/[...all]` while PRD-facing BFF routes exist at `/api/auth/login`, `/api/auth/logout`, and `/api/auth/session`; QIMS roles are stored as Better Auth user additional fields and enforced with server-side QIMS RBAC helpers; permission keys are derived from PRD modules and can be refined in Tahap 2.
+- Deviations from PRD: none intentional; verification is incomplete because local disk space blocked dependency installation.
+- User approval needed: free disk space on C: and rerun install/checks before approving Tahap 1 as fully verified, or explicitly approve proceeding with this known verification gap.
+
+### Notes
+- C: drive free space was about 171 MB after cleanup, which is too low for Next.js/Better Auth/Drizzle dependency installation.
+
+## 2026-06-07 - Tahap 1 Backend Foundation Verification on D Drive
+
+### PRD Validation
+- PRD sections checked before work: 7.1 Authentication and Authorization, 11 Architecture, 12 Recommended Tech Stack, 13 Database Schema, 14.1 Auth, 15 Security Requirements, 16.3 Backend, 21 MVP Production Release Scope, 22 Acceptance Criteria Global, 23.1 Keputusan Teknis Final, 24 Definition of Done.
+- Agent skill used: `agent-skills/backend-agent/SKILL.md`.
+- Work completed: resumed Tahap 1 in `D:\QIMS`, installed dependencies, generated lockfile, generated Drizzle migration, fixed build/lint configuration, pinned Kysely compatibility for Better Auth, and verified backend foundation checks.
+- Files changed: `package.json`, `package-lock.json`, `.gitignore`, `apps/web/package.json`, `apps/web/eslint.config.mjs`, `apps/web/tsconfig.json`, `apps/web/drizzle/0000_jazzy_pyro.sql`, `apps/web/drizzle/meta/0000_snapshot.json`, `apps/web/drizzle/meta/_journal.json`, `docs/WORK_LOG.md`, `docs/agent-reports/2026-06-07-backend-foundation.md`.
+- Tests/checks run: `npm install` passed; `npm run typecheck` passed; `npm test` passed with 2 files and 6 tests; `npm run lint` passed; `npm run build` passed; `npm run db:generate` passed and reported no further schema changes after initial migration; `npm audit --audit-level=high` passed.
+- PRD sections checked after work: 7.1 Authentication and Authorization, 11 Architecture, 12 Recommended Tech Stack, 13 Database Schema, 14.1 Auth, 15 Security Requirements, 16.3 Backend, 21 MVP Production Release Scope, 22 Acceptance Criteria Global, 23.1 Keputusan Teknis Final, 24 Definition of Done.
+- Requirements satisfied: Next.js Route Handler backend foundation builds successfully; Better Auth auth/session config exists; PostgreSQL Drizzle schema and migration exist; RBAC helper and permission map exist; audit log schema/helper and auth login/logout/failed-login audit calls exist; validation and pagination helpers exist; seed role/permission script exists; API foundation docs exist; typecheck/test/lint/build/db-generate checks pass.
+- Requirements not yet satisfied: `db:migrate` and `db:seed` were not run because a confirmed PostgreSQL `DATABASE_URL` is not available; role-change audit endpoint belongs to the next Super Admin stage.
+- Assumptions made: `D:\QIMS` is now the active project location; Kysely is pinned to `0.28.17` for Better Auth 1.6.14 compatibility; `next build --webpack` is acceptable for the current Next/Better Auth dependency combination.
+- Deviations from PRD: none intentional. Better Auth native routes remain mounted under `/api/auth/[...all]` in addition to PRD-facing auth BFF routes.
+- User approval needed: approve Tahap 1 as verified, or provide a PostgreSQL connection if you want `db:migrate` and `db:seed` executed before moving to Tahap 2.
+
+### Notes
+- `D:\QIMS` is not detected as a git repository after the manual move, so git status could not be checked.
+- `npm audit --audit-level=high` passed, but npm reports 6 moderate vulnerabilities in transitive dev/build dependencies. The suggested fix requires breaking changes, so it was not force-applied.
+
+## 2026-06-07 - Tahap 1 Database Migration and Seed
+
+### PRD Validation
+- PRD sections checked before work: 7.1 Authentication and Authorization, 11 Architecture, 12 Recommended Tech Stack, 13 Database Schema, 15 Security Requirements, 16.3 Backend, 21 MVP Production Release Scope, 22 Acceptance Criteria Global, 23.1 Keputusan Teknis Final, 24 Definition of Done.
+- Agent skill used: `agent-skills/backend-agent/SKILL.md`.
+- Work completed: verified git repository at `D:/QIMS`, validated root `.env` contains `DATABASE_URL` without exposing secrets, patched env loading for workspace commands, ran database migration, ran seed, verified seed counts, ignored TypeScript build cache, and removed `apps/web/tsconfig.tsbuildinfo` from git index/filesystem.
+- Files changed: `.gitignore`, `apps/web/drizzle.config.ts`, `apps/web/scripts/seed.ts`, `apps/web/src/server/env.ts`, `apps/web/src/server/load-env.ts`, `docs/WORK_LOG.md`, `docs/agent-reports/2026-06-07-backend-foundation.md`.
+- Tests/checks run: `npm run db:migrate` passed; `npm run db:seed` passed; database verification query returned 5 roles, 19 permissions, 43 role-permission mappings, and 0 audit logs; `npm run typecheck` passed; `npm test` passed with 2 files and 6 tests; `npm run lint` passed; `npm run build` passed; `npm run db:generate` passed with no schema changes.
+- PRD sections checked after work: 7.1 Authentication and Authorization, 11 Architecture, 12 Recommended Tech Stack, 13 Database Schema, 15 Security Requirements, 16.3 Backend, 21 MVP Production Release Scope, 22 Acceptance Criteria Global, 23.1 Keputusan Teknis Final, 24 Definition of Done.
+- Requirements satisfied: PostgreSQL migration applied; seed role and permission data applied; Better Auth/Drizzle foundation remains buildable; RBAC helper/test coverage remains passing; audit log table exists; validation and pagination helpers remain passing; `.env` is ignored by git; generated TypeScript cache is ignored.
+- Requirements not yet satisfied: role-change audit endpoint belongs to Tahap 2 Super Admin.
+- Assumptions made: root `.env` is the active local environment source for workspace commands; seeded permission keys remain the Tahap 1 foundation and can be refined in Tahap 2 if needed.
+- Deviations from PRD: none intentional.
+- User approval needed: approve Tahap 1 as complete before starting Tahap 2 Super Admin.
+
+### Notes
+- Git repository is active at `D:/QIMS`.
+- `git status --short --untracked-files=no` shows initial project files staged plus modified files from this verification pass.
