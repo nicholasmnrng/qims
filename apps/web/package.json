@@ -19,6 +19,7 @@
     "dotenv": "latest",
     "drizzle-orm": "latest",
     "kysely": "0.28.17",
+    "lucide-react": "^1.17.0",
     "next": "latest",
     "pg": "latest",
     "react": "latest",
