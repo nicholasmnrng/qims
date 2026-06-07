@@ -8,6 +8,13 @@
       "when": 1780773811136,
       "tag": "0000_jazzy_pyro",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1780812432914,
+      "tag": "0001_damp_wilson_fisk",
+      "breakpoints": true
     }
   ]
 }

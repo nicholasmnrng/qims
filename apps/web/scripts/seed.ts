@@ -5,6 +5,8 @@ import {
   permissions as permissionsTable,
   rolePermissions,
   roles,
+  shifts,
+  systemSettings,
   type UserRole,
 } from "../src/server/db/schema";
 import {
@@ -45,6 +47,25 @@ const roleRows: Array<{
   },
 ];
 
+const defaultShiftRows = [
+  {
+    id: "00000000-0000-4000-8000-000000000101",
+    name: "Shift Pagi",
+    startTime: "07:00",
+    endTime: "19:00",
+    timezone: "Asia/Makassar",
+    status: "active" as const,
+  },
+  {
+    id: "00000000-0000-4000-8000-000000000102",
+    name: "Shift Malam",
+    startTime: "19:00",
+    endTime: "07:00",
+    timezone: "Asia/Makassar",
+    status: "active" as const,
+  },
+];
+
 async function seed() {
   await db
     .insert(roles)
@@ -70,6 +91,20 @@ async function seed() {
   );
 
   await db.insert(rolePermissions).values(mappings).onConflictDoNothing();
+
+  await db.insert(shifts).values(defaultShiftRows).onConflictDoNothing();
+
+  await db
+    .insert(systemSettings)
+    .values({
+      key: "system.defaults",
+      value: {
+        timezone: "Asia/Makassar",
+        language: "id",
+        ecoModeDefault: true,
+      },
+    })
+    .onConflictDoNothing();
 }
 
 seed()

@@ -22,7 +22,11 @@ describe("RBAC foundation", () => {
 
   it("blocks a role from permissions outside its scope", () => {
     expect(hasPermission("inspector", "schedule:manage")).toBe(false);
+    expect(hasPermission("inspector", "roles:manage")).toBe(false);
     expect(() => requirePermission(inspector, "schedule:manage")).toThrow(
+      "Anda tidak memiliki akses",
+    );
+    expect(() => requirePermission(inspector, "roles:manage")).toThrow(
       "Anda tidak memiliki akses",
     );
   });

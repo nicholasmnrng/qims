@@ -1,7 +1,12 @@
 import { ZodError } from "zod";
 
 import { AuthError } from "@/server/auth/rbac";
+import { HttpError } from "./http-error";
 import { fail } from "./response";
+
+function isDatabaseError(error: unknown): error is { code: string } {
+  return typeof error === "object" && error !== null && "code" in error;
+}
 
 export function handleApiError(error: unknown) {
   if (error instanceof ZodError) {
@@ -23,6 +28,20 @@ export function handleApiError(error: unknown) {
     }
 
     return fail("FORBIDDEN", error.message, 403);
+  }
+
+  if (error instanceof HttpError) {
+    return fail(error.code, error.message, error.status, error.details);
+  }
+
+  if (isDatabaseError(error)) {
+    if (error.code === "23505") {
+      return fail("CONFLICT", "Data dengan nilai unik tersebut sudah ada.", 409);
+    }
+
+    if (error.code === "23503") {
+      return fail("BAD_REQUEST", "Referensi data tidak valid.", 400);
+    }
   }
 
   if (error instanceof Error && error.message === "UNAUTHENTICATED") {
