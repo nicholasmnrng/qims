@@ -14,6 +14,14 @@ const inspector: SessionUser = {
   status: "active",
 };
 
+const qaManager: SessionUser = {
+  id: "qa-1",
+  email: "qa@example.com",
+  name: "QA Manager",
+  role: "qa_manager",
+  status: "active",
+};
+
 describe("RBAC foundation", () => {
   it("allows a role to use its assigned permission", () => {
     expect(hasPermission("supervisor", "schedule:manage")).toBe(true);
@@ -27,6 +35,17 @@ describe("RBAC foundation", () => {
       "Anda tidak memiliki akses",
     );
     expect(() => requirePermission(inspector, "roles:manage")).toThrow(
+      "Anda tidak memiliki akses",
+    );
+  });
+
+  it("allows QA Manager reports while blocking operational writes", () => {
+    expect(hasPermission("qa_manager", "reports:read")).toBe(true);
+    expect(hasPermission("qa_manager", "reports:export")).toBe(true);
+    expect(hasPermission("qa_manager", "tasks:manage")).toBe(false);
+    expect(hasPermission("qa_manager", "issues:manage")).toBe(false);
+    expect(() => requirePermission(qaManager, "reports:read")).not.toThrow();
+    expect(() => requirePermission(qaManager, "tasks:manage")).toThrow(
       "Anda tidak memiliki akses",
     );
   });
