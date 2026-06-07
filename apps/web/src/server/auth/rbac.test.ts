@@ -22,6 +22,14 @@ const qaManager: SessionUser = {
   status: "active",
 };
 
+const auditor: SessionUser = {
+  id: "auditor-1",
+  email: "auditor@example.com",
+  name: "Auditor",
+  role: "auditor",
+  status: "active",
+};
+
 describe("RBAC foundation", () => {
   it("allows a role to use its assigned permission", () => {
     expect(hasPermission("supervisor", "schedule:manage")).toBe(true);
@@ -46,6 +54,27 @@ describe("RBAC foundation", () => {
     expect(hasPermission("qa_manager", "issues:manage")).toBe(false);
     expect(() => requirePermission(qaManager, "reports:read")).not.toThrow();
     expect(() => requirePermission(qaManager, "tasks:manage")).toThrow(
+      "Anda tidak memiliki akses",
+    );
+  });
+
+  it("keeps Auditor read-only while allowing reports and audit trail", () => {
+    expect(hasPermission("auditor", "reports:read")).toBe(true);
+    expect(hasPermission("auditor", "audit:read")).toBe(true);
+    expect(hasPermission("auditor", "reports:export")).toBe(false);
+    expect(hasPermission("auditor", "tasks:manage")).toBe(false);
+    expect(hasPermission("auditor", "issues:manage")).toBe(false);
+    expect(hasPermission("auditor", "schedule:manage")).toBe(false);
+    expect(hasPermission("auditor", "sop:manage")).toBe(false);
+    expect(hasPermission("auditor", "tasks:update-own")).toBe(false);
+    expect(hasPermission("auditor", "issues:create-own")).toBe(false);
+    expect(hasPermission("auditor", "handover:create-own")).toBe(false);
+    expect(() => requirePermission(auditor, "reports:read")).not.toThrow();
+    expect(() => requirePermission(auditor, "audit:read")).not.toThrow();
+    expect(() => requirePermission(auditor, "tasks:manage")).toThrow(
+      "Anda tidak memiliki akses",
+    );
+    expect(() => requirePermission(auditor, "reports:export")).toThrow(
       "Anda tidak memiliki akses",
     );
   });

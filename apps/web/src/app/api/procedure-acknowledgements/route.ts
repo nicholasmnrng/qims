@@ -1,12 +1,10 @@
 import { handleApiError } from "@/server/api/errors";
+import { listSopAcknowledgements } from "@/server/api/auditor";
 import { ok } from "@/server/api/response";
-import { requireAuditRead } from "@/server/api/auditor";
-import { listAuditLogs } from "@/server/api/super-admin";
 
 export async function GET(request: Request) {
   try {
-    await requireAuditRead(request);
-    return ok(await listAuditLogs(request));
+    return ok(await listSopAcknowledgements(request));
   } catch (error) {
     return handleApiError(error);
   }
