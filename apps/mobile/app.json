@@ -4,6 +4,7 @@
     "slug": "cladtek-quality-inspector",
     "version": "0.1.0",
     "orientation": "portrait",
+    "icon": "./assets/cladtek-logo-icon.png",
     "scheme": "cladtekqi",
     "userInterfaceStyle": "dark",
     "assetBundlePatterns": [

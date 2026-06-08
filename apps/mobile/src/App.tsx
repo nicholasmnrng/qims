@@ -23,6 +23,7 @@ import {
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
+  Image,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -33,6 +34,8 @@ import {
   TextInput,
   View,
 } from "react-native";
+
+declare const require: (path: string) => number;
 
 type TabKey = "mission" | "tasks" | "sop" | "handover" | "issues" | "notifications" | "profile";
 
@@ -196,6 +199,7 @@ type LoadState = "booting" | "login" | "ready";
 
 const APP_NAME = "Cladtek Quality Inspector";
 const APP_SHORT_NAME = "Cladtek QI";
+const cladtekLogo = require("../assets/cladtek-logo.png");
 
 const storageKeys = {
   apiUrl: "qims.mobile.apiUrl",
@@ -1009,10 +1013,12 @@ function BootScreen() {
 function CladtekLogo({ compact = false }: { compact?: boolean }) {
   return (
     <View style={compact ? styles.brandCompact : styles.brandLockup}>
-      <View style={compact ? styles.brandCircleCompact : styles.brandCircle}>
-        <Text style={compact ? styles.brandCircleTextCompact : styles.brandCircleText}>CLAD</Text>
-      </View>
-      <Text style={compact ? styles.brandWordCompact : styles.brandWord}>TEK</Text>
+      <Image
+        accessibilityLabel="Cladtek"
+        resizeMode="contain"
+        source={cladtekLogo}
+        style={compact ? styles.brandImageCompact : styles.brandImage}
+      />
     </View>
   );
 }
@@ -1204,58 +1210,23 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   brandLockup: {
-    minHeight: 48,
-    flexDirection: "row",
-    alignItems: "center",
+    width: 176,
+    height: 64,
     alignSelf: "flex-start",
+    justifyContent: "center",
   },
   brandCompact: {
-    width: 82,
-    minHeight: 34,
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  brandCircle: {
-    width: 48,
-    height: 48,
-    alignItems: "center",
+    width: 96,
+    height: 38,
     justifyContent: "center",
-    borderWidth: 2,
-    borderColor: colors.text,
-    borderRadius: 24,
-    backgroundColor: colors.brand,
   },
-  brandCircleCompact: {
-    width: 34,
-    height: 34,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1.5,
-    borderColor: colors.text,
-    borderRadius: 17,
-    backgroundColor: colors.brand,
+  brandImage: {
+    width: "100%",
+    height: "100%",
   },
-  brandCircleText: {
-    color: colors.text,
-    fontSize: 13,
-    fontWeight: "900",
-  },
-  brandCircleTextCompact: {
-    color: colors.text,
-    fontSize: 9,
-    fontWeight: "900",
-  },
-  brandWord: {
-    marginLeft: -2,
-    color: colors.brand,
-    fontSize: 28,
-    fontWeight: "900",
-  },
-  brandWordCompact: {
-    marginLeft: -1,
-    color: colors.brand,
-    fontSize: 18,
-    fontWeight: "900",
+  brandImageCompact: {
+    width: "100%",
+    height: "100%",
   },
   loginTitle: {
     color: colors.text,

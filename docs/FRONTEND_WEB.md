@@ -22,7 +22,8 @@ File utama:
 Branding:
 
 - App display name: `Cladtek Quality Inspector`
-- Logo asset: `apps/web/public/brand/cladtek-logo.svg`
+- Logo asset: `apps/web/public/brand/cladtek-logo.png`
+- Favicon/app icon asset: `apps/web/public/brand/cladtek-logo-icon.png`
 - Browser title/icon are configured in `apps/web/src/app/layout.tsx`
 
 ## Login & Session

@@ -305,6 +305,24 @@ Log ini menjadi catatan utama pekerjaan agent. Semua agent wajib menambah entry 
 
 ### Notes
 - GitHub issue: #9 Tahap 10 - Final MVP QA remains open.
+
+## 2026-06-08 - Post Tahap 10 Logo Asset Replacement
+
+### PRD Validation
+- PRD sections checked before work: 1 Product Overview, 6 Utility UX & Eco-Mode, 9 UI/UX Specification, 24 Definition of Done.
+- Agent skill used: `agent-skills/frontend-agent/SKILL.md` and `agent-skills/stage-delivery-agent/SKILL.md`.
+- Work completed: replaced the previous Cladtek SVG approximation with the new PNG logo from `C:\Users\user\Downloads\Desain tanpa judul (1).png`, generated cropped logo and square icon assets for web/mobile, updated web favicon/logo references, updated Expo icon, updated mobile to render the real PNG logo, removed the old SVG logo asset, and updated frontend/mobile docs.
+- Files changed: `apps/web/public/brand/cladtek-logo.png`, `apps/web/public/brand/cladtek-logo-icon.png`, `apps/mobile/assets/cladtek-logo.png`, `apps/mobile/assets/cladtek-logo-icon.png`, `apps/web/public/brand/cladtek-logo.svg`, `apps/web/src/app/layout.tsx`, `apps/web/src/app/web-dashboard.tsx`, `apps/web/src/app/globals.css`, `apps/mobile/app.json`, `apps/mobile/src/App.tsx`, `docs/FRONTEND_WEB.md`, `docs/MOBILE_APP_INSPECTOR.md`, `docs/WORK_LOG.md`.
+- Tests/checks run: `npm run typecheck` passed; `npm run mobile:typecheck` passed; `npm run lint` passed; `npm run build` passed; `npm run mobile:build` passed and bundled `assets/cladtek-logo.png`; `QIMS_WEB_URL=http://127.0.0.1:3005 npm run qa:web-browser` passed for Super Admin, Supervisor, QA Manager, and Auditor with no console errors and no mobile horizontal overflow; `GET /brand/cladtek-logo.png` and `GET /brand/cladtek-logo-icon.png` returned 200.
+- PRD sections checked after work: 1 Product Overview, 6 Utility UX & Eco-Mode, 9 UI/UX Specification, 24 Definition of Done.
+- Requirements satisfied: web and mobile now use the new PNG logo supplied by user; web favicon uses the generated PNG icon; mobile Expo icon uses the generated PNG icon; old SVG approximation was removed.
+- Requirements not yet satisfied: Final MVP remains not approved by user.
+- Assumptions made: the provided PNG is the approved company logo source for this pass; internal `QIMS_*` env/script identifiers remain unchanged.
+- Deviations from PRD: none; this is user-approved branding asset replacement.
+- User approval needed: review web/mobile visual logo rendering before Final MVP approval.
+
+### Notes
+- GitHub issue: #9 Tahap 10 - Final MVP QA remains open.
 - Detail report: `docs/agent-reports/2026-06-08-post-tahap-10-mvp-gap-closure.md`.
 
 ## 2026-06-08 - Post Tahap 10 Branding Update

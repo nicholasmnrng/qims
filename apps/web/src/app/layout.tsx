@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   title: "Cladtek Quality Inspector",
   description: "Cladtek Quality Inspector operation management system",
   icons: {
-    icon: "/brand/cladtek-logo.svg",
+    icon: "/brand/cladtek-logo-icon.png",
   },
 };
 

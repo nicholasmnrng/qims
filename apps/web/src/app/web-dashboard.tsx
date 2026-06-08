@@ -666,9 +666,9 @@ function BrandBlock({ subtitle }: { subtitle: string }) {
           className="brand-logo"
           height={40}
           priority
-          src="/brand/cladtek-logo.svg"
+          src="/brand/cladtek-logo.png"
           unoptimized
-          width={120}
+          width={160}
         />
       </div>
       <div>

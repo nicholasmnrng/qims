@@ -9,6 +9,8 @@ Tahap 9 menambahkan React Native Expo app untuk Inspector. Post Tahap 10 gap pas
 - Expo config: `apps/mobile/app.json`
 - Expo display name: `Cladtek Quality Inspector`
 - Mobile header/login/boot screen display Cladtek branding.
+- Logo asset: `apps/mobile/assets/cladtek-logo.png`
+- App icon asset: `apps/mobile/assets/cladtek-logo-icon.png`
 
 Commands:
 
