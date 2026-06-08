@@ -17,6 +17,7 @@
     "db:seed:demo": "npm --workspace apps/web run db:seed:demo",
     "qa:mvp-smoke": "npm --workspace apps/web run qa:mvp-smoke",
     "qa:web-browser": "npm --workspace apps/web run qa:web-browser",
+    "qa:worker": "npm --workspace apps/web run qa:worker",
     "mobile:start": "npm --workspace apps/mobile run start",
     "mobile:typecheck": "npm --workspace apps/mobile run typecheck",
     "mobile:build": "npm --workspace apps/mobile run build"

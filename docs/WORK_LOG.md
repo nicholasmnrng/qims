@@ -342,3 +342,22 @@ Log ini menjadi catatan utama pekerjaan agent. Semua agent wajib menambah entry 
 
 ### Notes
 - GitHub issue: #9 Tahap 10 - Final MVP QA remains open.
+
+## 2026-06-08 - Post Tahap 10 MVP Gap Closure Continuation
+
+### PRD Validation
+- PRD sections checked before work: 5 Product Scope, 6 Utility UX & Eco-Mode, 7.3 Shift & Schedule Management, 7.4 Task & Priority Management, 7.8 Rotation Recommendation, 7.11 Notification Center, 7.13 Reporting & Analytics, 8 User Flows, 9 UI/UX Specification, 10 Notification UX, 11 Architecture, 14 API Specification, 15 Security Requirements, 16 Performance Requirements, 17 Offline & Sync Requirements, 18 Eco-Mode Requirements, 21 MVP Production Release Scope, 22 Acceptance Criteria Global, 24 Definition of Done, 25 Recommended UI Pages.
+- Agent skill used: `agent-skills/backend-agent/SKILL.md`, `agent-skills/frontend-agent/SKILL.md`, `agent-skills/qa-agent/SKILL.md`, and `agent-skills/stage-delivery-agent/SKILL.md`.
+- Work completed: stabilized Tailwind/shadcn/TanStack/Recharts/dnd-kit foundation, fixed backend runtime auth/type issues, implemented local worker runner, async export jobs, rotation recommendation API, Supervisor calendar view, drag-and-drop priority board with reason/API update, report charts, async export UI, mobile offline draft sync button, worker QA script, and updated API/hardening docs.
+- Files changed: `apps/web/src/app/web-dashboard.tsx`, `apps/web/src/app/globals.css`, `apps/mobile/src/App.tsx`, `apps/web/src/app/api/worker/run/route.ts`, `apps/web/src/app/api/reports/export-jobs/**`, `apps/web/src/app/api/rotation-recommendations/route.ts`, `apps/web/src/server/db/schema.ts`, `apps/web/drizzle/0007_handy_reptil.sql`, `apps/web/scripts/qa-runner.ts`, `apps/web/scripts/final-mvp-smoke.ts`, Tailwind/shadcn setup files, package manifests, `docs/API_REFERENCE.md`, `docs/BACKEND_HARDENING.md`, and this log/report.
+- Tests/checks run: `npm run db:migrate` passed; `npm run db:generate` passed with no schema changes; `npm run db:seed:demo` passed; `npm run typecheck` passed; `npm run mobile:typecheck` passed; `npm test` passed with 9 files and 40 tests; `npm run lint` passed; `npm run build` passed; `npm run mobile:build` passed; `npm audit --audit-level=high` passed with moderate transitive advisories remaining; `QIMS_WEB_URL=http://127.0.0.1:3007 npm run qa:web-browser` passed; `QIMS_API_URL=http://127.0.0.1:3007 npm run qa:worker` passed.
+- PRD sections checked after work: 5, 6, 7.3, 7.4, 7.8, 7.11, 7.13, 8, 9, 10, 11, 14, 15, 16, 17, 18, 21, 22, 24, 25.
+- Requirements satisfied: UI stack foundation is build-safe; Supervisor has calendar and drag priority board; QA Manager has charts and async export UI; backend has background jobs, worker runner, async export jobs, and rotation recommendation; mobile has explicit offline draft sync; browser QA and worker QA are repeatable.
+- Requirements not yet satisfied: production object storage, production push provider/background runner, production realtime transport, Redis-backed rate limit, physical device/emulator QA, staging sign-off, stakeholder manual UX approval, and Final MVP user approval.
+- Assumptions made: local/dev fallback runtime is acceptable until external credentials are provided; existing dashboard action forms remain the primary CRUD/action surface while shadcn components remain foundation/prototype.
+- Deviations from PRD: no intentional backend contract deviation; production infrastructure items remain blocked and are not claimed complete; full MVP smoke was not rerun to avoid creating additional visible smoke records.
+- User approval needed: review this continuation pass and decide whether remaining infrastructure/manual QA blockers are acceptable for Final MVP review.
+
+### Notes
+- GitHub issue: #9 Tahap 10 - Final MVP QA remains open.
+- Detail report: `docs/agent-reports/2026-06-08-mvp-gap-closure-continuation.md`.

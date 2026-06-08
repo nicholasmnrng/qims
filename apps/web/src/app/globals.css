@@ -1,31 +1,81 @@
-:root {
-  color-scheme: dark;
-  --bg: #11130f;
-  --surface: #181b16;
-  --surface-2: #20241e;
-  --line: #30362e;
-  --text: #eef4e8;
-  --muted: #aab5a3;
-  --accent: #5fc7a5;
-  --accent-2: #d7b76a;
-  --danger: #ee7d68;
-  --focus: #85d7ff;
-  --shadow: rgba(0, 0, 0, 0.28);
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: dark;
+    --bg: #11130f;
+    --surface: #181b16;
+    --surface-2: #20241e;
+    --line: #30362e;
+    --text: #eef4e8;
+    --muted: #aab5a3;
+    --accent: #5fc7a5;
+    --accent-2: #d7b76a;
+    --danger: #ee7d68;
+    --focus: #85d7ff;
+    --shadow: rgba(0, 0, 0, 0.28);
+
+    --background: 96 15% 7%;      /* #11130f */
+    --foreground: 96 25% 94%;     /* #eef4e8 */
+
+    --card: 96 11% 9%;            /* #181b16 */
+    --card-foreground: 96 25% 94%;
+
+    --popover: 96 11% 9%;
+    --popover-foreground: 96 25% 94%;
+
+    --primary: 161 50% 58%;       /* #5fc7a5 */
+    --primary-foreground: 96 15% 7%;
+
+    --secondary: 96 9% 12%;       /* #20241e */
+    --secondary-foreground: 96 25% 94%;
+
+    --muted: 96 9% 12%;           /* #20241e */
+    --muted-foreground: 96 11% 67%; /* #aab5a3 */
+
+    --accent: 161 50% 58%;        /* #5fc7a5 */
+    --accent-foreground: 96 15% 7%;
+
+    --destructive: 10 80% 67%;    /* #ee7d68 */
+    --destructive-foreground: 96 25% 94%;
+
+    --border: 96 8% 18%;          /* #30362e */
+    --input: 96 8% 18%;
+    --ring: 161 50% 58%;          /* #5fc7a5 */
+
+    --radius: 0.5rem;
+  }
+
+  .eco {
+    --bg: #10120f;
+    --surface: #171a15;
+    --surface-2: #1d211c;
+    --line: #2c332a;
+
+    --background: 96 15% 6%;
+    --card: 96 11% 9%;
+    --secondary: 96 7% 12%;
+    --border: 96 9% 17%;
+  }
 }
 
-* {
-  box-sizing: border-box;
-}
-
-body {
-  margin: 0;
-  background: var(--bg);
-  color: var(--text);
-  font-family:
-    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-    sans-serif;
-  font-size: 14px;
-  letter-spacing: 0;
+@layer base {
+  * {
+    border-color: hsl(var(--border));
+  }
+  body {
+    background: hsl(var(--background));
+    color: hsl(var(--foreground));
+    margin: 0;
+    font-feature-settings: "rlig" 1, "calt" 1;
+    font-family:
+      Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+      sans-serif;
+    font-size: 14px;
+    letter-spacing: 0;
+  }
 }
 
 button,
@@ -50,13 +100,6 @@ button:disabled {
   grid-template-columns: 248px minmax(0, 1fr);
   min-height: 100vh;
   background: var(--bg);
-}
-
-.eco {
-  --bg: #10120f;
-  --surface: #171a15;
-  --surface-2: #1d211c;
-  --line: #2c332a;
 }
 
 .sidebar {
@@ -454,6 +497,101 @@ button:disabled {
   padding: 14px;
 }
 
+.chart-panel {
+  min-height: 330px;
+}
+
+.schedule-calendar {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.calendar-weekday {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 750;
+  text-align: center;
+}
+
+.calendar-day {
+  display: grid;
+  align-content: space-between;
+  min-height: 58px;
+  padding: 7px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-2);
+}
+
+.calendar-day.muted {
+  opacity: 0;
+}
+
+.calendar-day.active {
+  border-color: #47745e;
+  background: #1f3028;
+}
+
+.calendar-day strong {
+  font-size: 13px;
+}
+
+.calendar-day em {
+  color: var(--accent);
+  font-size: 11px;
+  font-style: normal;
+}
+
+.priority-board {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.priority-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 58px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-2);
+  cursor: grab;
+  touch-action: none;
+}
+
+.priority-item:active {
+  cursor: grabbing;
+}
+
+.priority-item div {
+  min-width: 0;
+}
+
+.priority-item strong,
+.priority-item span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.priority-item span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.priority-item em {
+  flex: none;
+  color: var(--accent-2);
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 750;
+}
+
 .panel-header {
   display: flex;
   align-items: center;
@@ -757,10 +895,7 @@ td {
     grid-template-columns: 1fr;
   }
 
-  .filter-bar label {
-    width: 100%;
-  }
-
+  .filter-bar label,
   .filter-bar .utility-button {
     width: 100%;
   }

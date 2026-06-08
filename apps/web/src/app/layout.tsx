@@ -10,10 +10,18 @@ export const metadata: Metadata = {
   },
 };
 
+import { Providers } from "./providers";
+import { Toaster } from "@/components/ui/sonner";
+
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="id">
-      <body>{children}</body>
+      <body>
+        <Providers>
+          {children}
+          <Toaster />
+        </Providers>
+      </body>
     </html>
   );
 }

@@ -32,6 +32,33 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
+import {
+  closestCenter,
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Legend,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 
 const APP_NAME = "Cladtek Quality Inspector";
 const APP_SHORT_NAME = "Cladtek QI";
@@ -924,6 +951,16 @@ function OperationsView({
       </section>
       <OperationsActionCenter notify={notify} onRefresh={onRefresh} payload={payload} session={session} />
       <div className="two-column">
+        <ShiftCalendarPanel assignments={listItems(payload.assignments)} />
+        {session.permissions.includes("tasks:manage") ? (
+          <TaskPriorityBoard notify={notify} onRefresh={onRefresh} tasks={listItems(payload.tasks)} />
+        ) : (
+          <Panel emptyText="Role ini tidak memiliki akses update priority." icon={Lock} rows={[]} title="Priority Board">
+            <PermissionState />
+          </Panel>
+        )}
+      </div>
+      <div className="two-column">
         <Panel emptyText="Belum ada assignment hari ini." icon={Layers3} rows={listItems(payload.assignments)} title="Shift Planner">
           <DataTable
             columns={[
@@ -975,6 +1012,147 @@ function OperationsView({
   );
 }
 
+function ShiftCalendarPanel({ assignments }: { assignments: Record<string, unknown>[] }) {
+  const calendarDate = new Date();
+  const year = calendarDate.getFullYear();
+  const month = calendarDate.getMonth();
+  const monthStart = new Date(year, month, 1);
+  const firstDayOffset = monthStart.getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const assignmentCountByDate = assignments.reduce<Record<string, number>>((acc, row) => {
+    const date = textValue(getPath(row, "assignment.workDate"), "");
+    if (date) acc[date] = (acc[date] ?? 0) + 1;
+    return acc;
+  }, {});
+  const cells = [
+    ...Array.from({ length: firstDayOffset }, () => null),
+    ...Array.from({ length: daysInMonth }, (_, index) => index + 1),
+  ];
+
+  return (
+    <Panel emptyText="Belum ada assignment pada kalender." icon={Layers3} rows={assignments} title="Calendar View">
+      <div className="schedule-calendar" aria-label="Shift assignment calendar">
+        {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((label) => (
+          <span className="calendar-weekday" key={label}>{label}</span>
+        ))}
+        {cells.map((day, index) => {
+          if (!day) return <span aria-hidden className="calendar-day muted" key={`empty-${index}`} />;
+          const dateKey = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+          const count = assignmentCountByDate[dateKey] ?? 0;
+          return (
+            <span className={count > 0 ? "calendar-day active" : "calendar-day"} key={dateKey}>
+              <strong>{day}</strong>
+              {count > 0 && <em>{count} shift</em>}
+            </span>
+          );
+        })}
+      </div>
+    </Panel>
+  );
+}
+
+function TaskPriorityBoard({
+  notify,
+  onRefresh,
+  tasks,
+}: {
+  notify: Notify;
+  onRefresh: () => Promise<void>;
+  tasks: Record<string, unknown>[];
+}) {
+  const [items, setItems] = useState(tasks);
+  const [reason, setReason] = useState("");
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => setItems(tasks), 0);
+    return () => window.clearTimeout(timeout);
+  }, [tasks]);
+
+  async function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    if (!reason.trim()) {
+      notify({ tone: "warning", text: "Isi reason sebelum mengubah prioritas via drag-and-drop." });
+      return;
+    }
+
+    const oldIndex = items.findIndex((item) => String(getPath(item, "task.id")) === String(active.id));
+    const newIndex = items.findIndex((item) => String(getPath(item, "task.id")) === String(over.id));
+    if (oldIndex < 0 || newIndex < 0) return;
+
+    const nextItems = arrayMove(items, oldIndex, newIndex);
+    setItems(nextItems);
+    const movedTask = nextItems[newIndex];
+    const taskId = String(getPath(movedTask, "task.id"));
+    const priority = priorityForBoardIndex(newIndex);
+
+    await runAction(notify, onRefresh, () =>
+      apiRequest(`/api/tasks/${taskId}/priority`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          priority,
+          reason,
+        }),
+      }),
+    );
+  }
+
+  return (
+    <Panel emptyText="Belum ada task untuk priority board." icon={ListChecks} rows={items} title="Drag Priority Board">
+      <TextField label="Reason for priority changes" onChange={setReason} required value={reason} />
+      <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd} sensors={sensors}>
+        <SortableContext
+          items={items.map((item) => String(getPath(item, "task.id")))}
+          strategy={verticalListSortingStrategy}
+        >
+          <div className="priority-board">
+            {items.map((task, index) => (
+              <SortableTaskItem
+                index={index}
+                key={String(getPath(task, "task.id"))}
+                task={task}
+              />
+            ))}
+          </div>
+        </SortableContext>
+      </DndContext>
+      <p className="form-hint">Drop position maps priority automatically: top critical, then high, medium, low.</p>
+    </Panel>
+  );
+}
+
+function SortableTaskItem({ index, task }: { index: number; task: Record<string, unknown> }) {
+  const id = String(getPath(task, "task.id"));
+  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id });
+  const priority = textValue(getPath(task, "task.priority"));
+  const nextPriority = priorityForBoardIndex(index);
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <article className="priority-item" ref={setNodeRef} style={style} {...attributes} {...listeners}>
+      <div>
+        <strong>{textValue(getPath(task, "task.title"))}</strong>
+        <span>{textValue(getPath(task, "area.name"))} · {textValue(getPath(task, "task.status"))}</span>
+      </div>
+      <em>{priority} → {nextPriority}</em>
+    </article>
+  );
+}
+
+function priorityForBoardIndex(index: number) {
+  if (index === 0) return "critical";
+  if (index <= 2) return "high";
+  if (index <= 5) return "medium";
+  return "low";
+}
+
 function ReportsView({
   notify,
   onRefresh,
@@ -999,6 +1177,7 @@ function ReportsView({
         <Metric icon={ClipboardCheck} label="SOP unread" value={textValue(summary.sopUnreadCount, "0")} />
         <Metric icon={Gauge} label="Task total" value={textValue(taskCompletion.total, "0")} />
       </section>
+      <ReportCharts issueSeverity={issueSeverity} taskCompletion={taskCompletion} />
       <ReportsActionCenter notify={notify} onRefresh={onRefresh} payload={payload} session={session} />
       <div className="two-column">
         <Panel emptyText="Belum ada task report." icon={FileText} rows={listItems(payload.taskReport)} title="Task Completion">
@@ -1051,6 +1230,75 @@ function ReportsView({
           />
         </Panel>
       </div>
+    </div>
+  );
+}
+
+function ReportCharts({
+  issueSeverity,
+  taskCompletion,
+}: {
+  issueSeverity: Record<string, unknown>;
+  taskCompletion: Record<string, unknown>;
+}) {
+  const byStatus = asObject(taskCompletion.byStatus);
+  const taskData = Object.entries(byStatus).map(([name, value]) => ({
+    name,
+    value: Number(value) || 0,
+  }));
+  const issueData = Object.entries(issueSeverity).map(([name, value]) => ({
+    name,
+    value: Number(value) || 0,
+  }));
+
+  return (
+    <div className="two-column">
+      <section className="panel chart-panel">
+        <header className="panel-header">
+          <div>
+            <Gauge aria-hidden size={18} />
+            <h2>Task Completion Chart</h2>
+          </div>
+          <span>{taskData.length}</span>
+        </header>
+        {taskData.length === 0 ? (
+          <StateMessage tone="muted" text="Chart task belum punya data." />
+        ) : (
+          <ResponsiveContainer height={260} width="100%">
+            <BarChart data={taskData}>
+              <CartesianGrid stroke="rgba(255,255,255,0.08)" vertical={false} />
+              <XAxis dataKey="name" tick={{ fill: "#aab5a3", fontSize: 11 }} tickLine={false} />
+              <YAxis allowDecimals={false} tick={{ fill: "#aab5a3", fontSize: 11 }} tickLine={false} />
+              <Tooltip contentStyle={{ background: "#181b16", border: "1px solid #30362e", borderRadius: 8 }} />
+              <Legend />
+              <Bar dataKey="value" fill="#5fc7a5" name="Tasks" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        )}
+      </section>
+      <section className="panel chart-panel">
+        <header className="panel-header">
+          <div>
+            <AlertTriangle aria-hidden size={18} />
+            <h2>Issue Severity Chart</h2>
+          </div>
+          <span>{issueData.length}</span>
+        </header>
+        {issueData.length === 0 ? (
+          <StateMessage tone="muted" text="Chart issue belum punya data." />
+        ) : (
+          <ResponsiveContainer height={260} width="100%">
+            <BarChart data={issueData}>
+              <CartesianGrid stroke="rgba(255,255,255,0.08)" vertical={false} />
+              <XAxis dataKey="name" tick={{ fill: "#aab5a3", fontSize: 11 }} tickLine={false} />
+              <YAxis allowDecimals={false} tick={{ fill: "#aab5a3", fontSize: 11 }} tickLine={false} />
+              <Tooltip contentStyle={{ background: "#181b16", border: "1px solid #30362e", borderRadius: 8 }} />
+              <Legend />
+              <Bar dataKey="value" fill="#d7b76a" name="Issues" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        )}
+      </section>
     </div>
   );
 }
@@ -1228,6 +1476,7 @@ function ReportsActionCenter({
   const [dateTo, setDateTo] = useState("");
   const [reason, setReason] = useState("");
   const [exportPreview, setExportPreview] = useState("");
+  const [downloadUrl, setDownloadUrl] = useState("");
 
   if (!session.permissions.includes("reports:export")) {
     return <StateMessage tone="muted" text="Role ini hanya dapat membaca report. Export disembunyikan oleh permission." />;
@@ -1266,10 +1515,16 @@ function ReportsActionCenter({
       <ConfirmActionButton
         icon={Send}
         label="Export"
-        message="Export report akan dicatat di audit log."
+        message="Export report akan dibuat sebagai background job lokal dan dicatat di audit log."
         onConfirm={() =>
           runAction(notify, onRefresh, async () => {
-            const data = await apiRequest<{ content: string; rowCount: number }>("/api/reports/export", {
+            const data = await apiRequest<{
+              job: {
+                id: string;
+                status: string;
+                result?: { content?: string; rowCount?: number; downloadUrl?: string };
+              };
+            }>("/api/reports/export-jobs", {
               method: "POST",
               body: JSON.stringify({
                 reportType,
@@ -1281,11 +1536,18 @@ function ReportsActionCenter({
                 reason,
               }),
             });
-            setExportPreview(data.content.slice(0, 800));
-            return `Export selesai: ${data.rowCount} rows.`;
+            const content = data.job.result?.content ?? "";
+            setExportPreview(content.slice(0, 800));
+            setDownloadUrl(data.job.result?.downloadUrl ?? "");
+            return `Export job ${data.job.id} ${data.job.status}: ${data.job.result?.rowCount ?? 0} rows.`;
           })
         }
       />
+      {downloadUrl && (
+        <a className="utility-button" href={downloadUrl}>
+          Download export
+        </a>
+      )}
       {exportPreview && <pre className="export-preview">{exportPreview}</pre>}
     </ActionCard>
   );

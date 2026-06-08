@@ -120,9 +120,13 @@ Runtime endpoints and schema:
 - `POST /api/device-tokens`
 - `GET /api/device-tokens`
 - `POST /api/notification-worker/dispatch`
+- `POST /api/worker/run`
+- `background_jobs` table
 - `device_tokens` table
 
 Notification database records remain source of truth. The local/dev mock worker updates `notification_recipients.delivery_status`, `delivered_at`, and active token `last_delivered_at`. Production still needs Expo/FCM/APNs credential and managed background runner.
+
+`POST /api/worker/run` is available as a Super Admin local/dev manual runner for testing worker job persistence and completion. Production still needs a managed queue/runner process.
 
 ## Realtime Contract
 
@@ -166,4 +170,6 @@ Backend is ready for frontend consumption under these constraints:
 - RBAC, validation, and error handling have focused tests.
 - Rate limit and contract helpers have focused tests.
 - Local/dev signed upload, notification dispatch, and realtime event log are implemented and covered by MVP smoke.
-- Large report export remains direct response for MVP small data only; async export worker is documented as production hardening path.
+- Small report export remains available as direct response through `POST /api/reports/export`.
+- Async local/dev report export is implemented through `POST /api/reports/export-jobs`, `GET /api/reports/export-jobs/:id`, and download route backed by `background_jobs`.
+- Production large export still needs a managed background runner/queue and object storage delivery for large files.

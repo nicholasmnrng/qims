@@ -116,6 +116,8 @@ export const offlineDraftStatusValues = [
 ] as const;
 export const deviceTokenPlatformValues = ["expo", "fcm", "apns", "web"] as const;
 export const deviceTokenStatusValues = ["active", "inactive", "failed"] as const;
+export const backgroundJobTypeValues = ["export_report", "dispatch_notification", "escalate_issue", "sop_reminder", "handover_reminder"] as const;
+export const backgroundJobStatusValues = ["pending", "running", "completed", "failed"] as const;
 
 export const userRoleEnum = pgEnum("user_role", userRoleValues);
 export const userStatusEnum = pgEnum("user_status", userStatusValues);
@@ -160,6 +162,8 @@ export const deviceTokenStatusEnum = pgEnum(
   "device_token_status",
   deviceTokenStatusValues,
 );
+export const backgroundJobTypeEnum = pgEnum("background_job_type", backgroundJobTypeValues);
+export const backgroundJobStatusEnum = pgEnum("background_job_status", backgroundJobStatusValues);
 
 export const users = pgTable(
   "users",
@@ -889,6 +893,28 @@ export const realtimeEvents = pgTable(
   ],
 );
 
+export const backgroundJobs = pgTable(
+  "background_jobs",
+  {
+    id: text("id").primaryKey(),
+    jobType: backgroundJobTypeEnum("job_type").notNull(),
+    payload: jsonb("payload").$type<Record<string, unknown>>().notNull(),
+    status: backgroundJobStatusEnum("status").notNull().default("pending"),
+    result: jsonb("result").$type<Record<string, unknown>>(),
+    error: text("error"),
+    startedAt: timestamp("started_at", { withTimezone: true }),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    createdBy: text("created_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("background_jobs_type_idx").on(table.jobType),
+    index("background_jobs_status_idx").on(table.status),
+    index("background_jobs_created_at_idx").on(table.createdAt),
+  ],
+);
+
 export const schema = {
   users,
   sessions,
@@ -922,6 +948,7 @@ export const schema = {
   inspectorSettings,
   deviceTokens,
   realtimeEvents,
+  backgroundJobs,
 };
 
 export type UserRole = (typeof userRoleValues)[number];
@@ -935,3 +962,5 @@ export type OfflineDraftType = (typeof offlineDraftTypeValues)[number];
 export type OfflineDraftStatus = (typeof offlineDraftStatusValues)[number];
 export type DeviceTokenPlatform = (typeof deviceTokenPlatformValues)[number];
 export type DeviceTokenStatus = (typeof deviceTokenStatusValues)[number];
+export type BackgroundJobType = (typeof backgroundJobTypeValues)[number];
+export type BackgroundJobStatus = (typeof backgroundJobStatusValues)[number];

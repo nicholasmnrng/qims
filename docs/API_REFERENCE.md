@@ -46,6 +46,8 @@ Rate limit Tahap 7 memakai in-memory bucket untuk development/MVP backend contra
 - Upload file memakai `POST /api/storage/signed-upload` lalu `PUT /api/storage/local-upload?objectKey=...` pada local/dev. Production object storage memakai contract env provider dan credential eksternal.
 - Notification worker local/dev memakai `POST /api/notification-worker/dispatch` untuk mock dispatch pending notification ke device token aktif.
 - Realtime local/dev memakai `GET /api/realtime-events` sebagai event log/polling fallback. Production websocket/SSE/provider masih dependency deployment eksternal.
+- Async report export local/dev memakai `POST /api/reports/export-jobs`, `GET /api/reports/export-jobs/:id`, dan `GET /api/reports/export-jobs/:id/download`.
+- Rotation recommendation local/dev memakai `GET /api/rotation-recommendations` untuk ranking inspector per area dari skill matrix dan assignment load.
 
 ## Runtime Integration Endpoints
 
@@ -107,3 +109,22 @@ Processes pending notification recipients and updates delivery status. Local/dev
 Permission: `notifications:read`.
 
 This is a local/dev event log and lightweight polling fallback. Notification creation publishes `notification.created` events on `user:{userId}` channels. Database notification records remain source of truth.
+
+### Background Jobs & Async Export
+
+- `POST /api/worker/run`
+- `POST /api/reports/export-jobs`
+- `GET /api/reports/export-jobs/:id`
+- `GET /api/reports/export-jobs/:id/download`
+
+`POST /api/worker/run` is a Super Admin local/dev manual runner for job types in `background_jobs`. It records `background_jobs.run` audit entries and is not a production scheduler.
+
+`POST /api/reports/export-jobs` requires `reports:export`, validates reason/filters, creates a `background_jobs` row, runs the existing report export flow locally, writes report export audit through the existing export service, and stores downloadable CSV/JSON content in the job result.
+
+### Rotation Recommendations
+
+- `GET /api/rotation-recommendations`
+
+Permission: `super_admin`, `supervisor`, or `qa_manager`.
+
+Response returns active areas with recommended inspector, current assignment load, area minimum skill, selected skill level, and reason. PostgreSQL skill matrix and assignments remain the source of truth; this endpoint is an assistive recommendation, not automatic assignment.

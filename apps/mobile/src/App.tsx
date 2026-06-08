@@ -603,6 +603,7 @@ export default function App() {
               setLoadState("login");
             }}
             onRegisterPush={registerPushToken}
+            onSyncOfflineDrafts={syncOfflineDrafts}
             onSettingsChange={(next) =>
               mutate(
                 () =>
@@ -714,6 +715,59 @@ export default function App() {
     } catch (error) {
       setPushStatus(error instanceof Error ? error.message : "Push registration gagal.");
     }
+  }
+
+  async function syncOfflineDrafts() {
+    const [cachedHandover, cachedIssue] = await Promise.all([
+      AsyncStorage.getItem(storageKeys.handoverDraft),
+      AsyncStorage.getItem(storageKeys.issueDraft),
+    ]);
+    const drafts: Array<{
+      localDraftId: string;
+      draftType: "handover" | "issue";
+      payload: Record<string, unknown>;
+      clientUpdatedAt: string;
+    }> = [];
+
+    if (cachedHandover) {
+      const draft = JSON.parse(cachedHandover) as HandoverDraft;
+      let payload: Record<string, unknown> = draft as unknown as Record<string, unknown>;
+      try {
+        payload = handoverPayload(mission, draft, "draft");
+      } catch {
+        payload = { ...draft, syncBlockedReason: "Assignment hari ini belum tersedia di cache." };
+      }
+      drafts.push({
+        localDraftId: draft.localDraftId,
+        draftType: "handover",
+        payload,
+        clientUpdatedAt: draft.updatedAt,
+      });
+    }
+
+    if (cachedIssue) {
+      const draft = JSON.parse(cachedIssue) as IssueDraft;
+      drafts.push({
+        localDraftId: `issue-manual-sync-${session?.user.id ?? "offline"}`,
+        draftType: "issue",
+        payload: draft as unknown as Record<string, unknown>,
+        clientUpdatedAt: new Date().toISOString(),
+      });
+    }
+
+    if (drafts.length === 0) {
+      setMessage("Tidak ada offline draft untuk disync.");
+      return;
+    }
+
+    await mutate(
+      () =>
+        request("/api/offline-drafts/sync", {
+          method: "POST",
+          body: JSON.stringify({ drafts }),
+        }),
+      refreshMission,
+    );
   }
 }
 
@@ -969,6 +1023,7 @@ function ProfileScreen({
   onApiUrlChange,
   onLogout,
   onRegisterPush,
+  onSyncOfflineDrafts,
   onSettingsChange,
   pushStatus,
   settings,
@@ -978,6 +1033,7 @@ function ProfileScreen({
   onApiUrlChange: (value: string) => void;
   onLogout: () => void;
   onRegisterPush: () => void;
+  onSyncOfflineDrafts: () => void;
   onSettingsChange: (settings: Partial<InspectorSettings>) => void;
   pushStatus: string;
   settings: InspectorSettings | null;
@@ -994,6 +1050,7 @@ function ProfileScreen({
         <ToggleRow label="Background sync" value={Boolean(settings?.backgroundSyncEnabled)} onValueChange={(backgroundSyncEnabled) => onSettingsChange({ backgroundSyncEnabled })} />
         <Text style={styles.subtle}>{pushStatus}</Text>
         <PrimaryButton icon={Bell} label="Register push" onPress={onRegisterPush} />
+        <PrimaryButton icon={RefreshCcw} label="Sync offline drafts" onPress={onSyncOfflineDrafts} />
         <PrimaryButton icon={LogOut} label="Logout" onPress={onLogout} />
       </Card>
     </View>
