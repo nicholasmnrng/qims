@@ -287,3 +287,22 @@ Log ini menjadi catatan utama pekerjaan agent. Semua agent wajib menambah entry 
 ### Notes
 - GitHub issue: #9 Tahap 10 - Final MVP QA.
 - Detail report: `docs/agent-reports/2026-06-08-final-mvp-qa.md`.
+
+## 2026-06-08 - Post Tahap 10 PRD MVP Gap Closure Pass
+
+### PRD Validation
+- PRD sections checked before work: 5 Product Scope, 6 Utility UX & Eco-Mode, 7 Core Features, 8 User Flows, 9 UI/UX Specification, 10 Notification UX, 11 Architecture, 14 API Specification, 15 Security Requirements, 16 Performance Requirements, 17 Offline & Sync Requirements, 18 Eco-Mode Requirements, 21 MVP Production Release Scope, 22 Acceptance Criteria Global, 24 Definition of Done, 25 Recommended UI Pages.
+- Agent skill used: `agent-skills/backend-agent/SKILL.md`, `agent-skills/frontend-agent/SKILL.md`, `agent-skills/qa-agent/SKILL.md`, and `agent-skills/stage-delivery-agent/SKILL.md`.
+- Work completed: audited actual repo and issue #9, expanded web role action centers, added local/dev storage runtime, device token API, notification worker dispatch, realtime event fallback, mobile image upload/push token/issue draft flow, browser QA script, migrations, docs, and repeatable smoke coverage.
+- Files changed: `.gitignore`, root/app package manifests and lockfile, `apps/web/src/app/web-dashboard.tsx`, `apps/web/src/app/globals.css`, user/area/shift API read permissions, runtime API routes under `apps/web/src/app/api/device-tokens`, `notification-worker`, `realtime-events`, and `storage`, runtime helpers under `apps/web/src/server/runtime`, validation runtime schemas, `apps/web/src/server/db/schema.ts`, `apps/web/drizzle/0005_mean_thunderbolt_ross.sql`, `apps/web/drizzle/0006_simple_tony_stark.sql`, `apps/web/scripts/final-mvp-smoke.ts`, `apps/web/scripts/browser-qa.ts`, `apps/mobile/src/App.tsx`, and docs.
+- Tests/checks run: `npm run db:generate` passed; `npm run db:migrate` passed; `npm run db:seed:demo` passed; `npm run typecheck` passed; `npm test` passed with 9 files and 40 tests; `npm run lint` passed; `npm run build` passed; `npm run mobile:typecheck` passed; `npm run mobile:build` passed; `QIMS_API_URL=http://127.0.0.1:3003 npm run qa:mvp-smoke` passed with suffix `20260608041935`; `QIMS_WEB_URL=http://127.0.0.1:3003 npm run qa:web-browser` passed; `npm audit --audit-level=high` passed with moderate transitive advisories still reported.
+- PRD sections checked after work: 5, 6, 7.1-7.14 except 7.8 not in current MVP implementation focus, 8, 9, 10, 11, 14, 15, 16, 17, 18, 21, 22, 24, 25.
+- Requirements satisfied: auth/RBAC smoke all roles; web operational action centers for Super Admin, Supervisor, QA Manager, and Auditor; mobile Inspector attachment/push-token/offline-draft/Eco-mode flows; local/dev runtime for storage, notification worker, and realtime fallback; audit logs for important new runtime actions; browser QA without major console errors or mobile overflow.
+- Requirements not yet satisfied: production object storage credential/provider, production push provider credential/background runner, production realtime transport/provider, Redis-backed multi-instance rate limit, native device/emulator QA, drag-and-drop priority board, staging sign-off, and user approval of Final MVP.
+- Assumptions made: local/dev fallback runtime is acceptable for testable MVP progress until external credentials are provided; smoke tests may create traceable records because hard delete is prohibited.
+- Deviations from PRD: no intentional backend contract deviation; production infrastructure items remain blocked by external credential/infrastructure rather than claimed complete.
+- User approval needed: review the updated web/mobile/backend runtime pass and decide whether to continue closing remaining non-external UX gaps or approve specific blockers as acceptable for Final MVP review.
+
+### Notes
+- GitHub issue: #9 Tahap 10 - Final MVP QA remains open.
+- Detail report: `docs/agent-reports/2026-06-08-post-tahap-10-mvp-gap-closure.md`.

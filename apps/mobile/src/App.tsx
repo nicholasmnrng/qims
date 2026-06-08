@@ -1,4 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as ImageManipulator from "expo-image-manipulator";
+import * as ImagePicker from "expo-image-picker";
+import * as Notifications from "expo-notifications";
 import {
   AlertCircle,
   Bell,
@@ -13,6 +16,7 @@ import {
   Send,
   Settings,
   ShieldAlert,
+  Upload,
   Wifi,
   WifiOff,
 } from "lucide-react-native";
@@ -169,6 +173,23 @@ type IssueDraft = {
   description: string;
   category: string;
   severity: string;
+  attachmentUrl?: string | null;
+};
+
+type IssuePhoto = {
+  uri: string;
+  fileName: string;
+  contentType: string;
+  sizeBytes: number;
+};
+
+type SignedUpload = {
+  url: string;
+  objectKey: string;
+  publicUrl: string;
+  requiredHeaders: {
+    "content-type": string;
+  };
 };
 
 type LoadState = "booting" | "login" | "ready";
@@ -178,6 +199,7 @@ const storageKeys = {
   sessionCookie: "qims.mobile.sessionCookie",
   cachedMission: "qims.mobile.cachedMission",
   handoverDraft: "qims.mobile.handoverDraft",
+  issueDraft: "qims.mobile.issueDraft",
 };
 
 const defaultApiUrl = "http://127.0.0.1:3000";
@@ -219,7 +241,10 @@ export default function App() {
     description: "",
     category: "quality_issue",
     severity: "medium",
+    attachmentUrl: null,
   });
+  const [issuePhoto, setIssuePhoto] = useState<IssuePhoto | null>(null);
+  const [pushStatus, setPushStatus] = useState("Push token belum diregistrasi.");
   const [loadingData, setLoadingData] = useState(false);
 
   const missionStatus = useMemo(() => {
@@ -251,8 +276,12 @@ export default function App() {
   );
 
   const loadCachedDraft = useCallback(async () => {
-    const draft = await AsyncStorage.getItem(storageKeys.handoverDraft);
+    const [draft, issue] = await Promise.all([
+      AsyncStorage.getItem(storageKeys.handoverDraft),
+      AsyncStorage.getItem(storageKeys.issueDraft),
+    ]);
     if (draft) setHandoverDraft(JSON.parse(draft) as HandoverDraft);
+    if (issue) setIssueDraft(JSON.parse(issue) as IssueDraft);
   }, []);
 
   const refreshMission = useCallback(async () => {
@@ -489,10 +518,13 @@ export default function App() {
             issues={issues}
             mission={mission}
             onDraftChange={setIssueDraft}
+            onPickPhoto={pickIssuePhoto}
+            photo={issuePhoto}
             onSubmit={() =>
               mutate(
-                () =>
-                  request("/api/issues", {
+                async () => {
+                  const attachmentUrl = issuePhoto ? await uploadIssuePhoto(issuePhoto) : issueDraft.attachmentUrl;
+                  return request("/api/issues", {
                     method: "POST",
                     body: JSON.stringify({
                       title: issueDraft.title,
@@ -501,14 +533,35 @@ export default function App() {
                       severity: issueDraft.severity,
                       areaId: mission?.area?.id ?? null,
                       shiftAssignmentId: mission?.assignment?.id ?? null,
+                      attachmentUrl: attachmentUrl || null,
                     }),
-                  }),
+                  });
+                },
                 async () => {
-                  setIssueDraft({ title: "", description: "", category: "quality_issue", severity: "medium" });
+                  const emptyIssue = { title: "", description: "", category: "quality_issue", severity: "medium", attachmentUrl: null };
+                  setIssueDraft(emptyIssue);
+                  setIssuePhoto(null);
+                  await AsyncStorage.removeItem(storageKeys.issueDraft);
                   await refreshMission();
                 },
               )
             }
+            onSaveDraft={async () => {
+              await AsyncStorage.setItem(storageKeys.issueDraft, JSON.stringify(issueDraft));
+              await mutate(
+                () =>
+                  request("/api/offline-drafts", {
+                    method: "POST",
+                    body: JSON.stringify({
+                      localDraftId: `issue-${Date.now()}`,
+                      draftType: "issue",
+                      payload: issueDraft,
+                      clientUpdatedAt: new Date().toISOString(),
+                    }),
+                  }),
+                refreshMission,
+              );
+            }}
           />
         )}
         {activeTab === "notifications" && (
@@ -539,6 +592,7 @@ export default function App() {
               setSessionCookie(null);
               setLoadState("login");
             }}
+            onRegisterPush={registerPushToken}
             onSettingsChange={(next) =>
               mutate(
                 () =>
@@ -550,6 +604,7 @@ export default function App() {
               )
             }
             settings={settings}
+            pushStatus={pushStatus}
             user={session?.user}
           />
         )}
@@ -572,6 +627,82 @@ export default function App() {
     } catch (error) {
       setOnline(false);
       setMessage(error instanceof Error ? error.message : "Gagal menyimpan. Data tetap aman di perangkat.");
+    }
+  }
+
+  async function pickIssuePhoto() {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      setMessage("Permission galeri belum diberikan.");
+      return;
+    }
+    const picked = await ImagePicker.launchImageLibraryAsync({
+      allowsEditing: false,
+      mediaTypes: ["images"],
+      quality: 0.8,
+    });
+    if (picked.canceled || !picked.assets[0]) return;
+    const asset = picked.assets[0];
+    const compressed = await ImageManipulator.manipulateAsync(
+      asset.uri,
+      [{ resize: { width: Math.min(asset.width ?? 1280, 1280) } }],
+      { compress: 0.72, format: ImageManipulator.SaveFormat.JPEG },
+    );
+    setIssuePhoto({
+      uri: compressed.uri,
+      fileName: `issue-${Date.now()}.jpg`,
+      contentType: "image/jpeg",
+      sizeBytes: asset.fileSize ?? 1_000_000,
+    });
+    setMessage("Foto issue dipilih dan dikompresi.");
+  }
+
+  async function uploadIssuePhoto(photo: IssuePhoto) {
+    const signed = await request<SignedUpload>("/api/storage/signed-upload", {
+      method: "POST",
+      body: JSON.stringify({
+        bucket: "issue-photos",
+        entityType: "issue_reports",
+        entityId: `mobile-${Date.now()}`,
+        fileName: photo.fileName,
+        contentType: photo.contentType,
+        sizeBytes: photo.sizeBytes,
+      }),
+    });
+    const file = await fetch(photo.uri);
+    const blob = await file.blob();
+    const upload = await fetch(signed.data.url, {
+      method: "PUT",
+      headers: {
+        "content-type": photo.contentType,
+        ...(sessionCookie ? { Cookie: sessionCookie } : {}),
+      },
+      body: blob,
+    });
+    if (!upload.ok) throw new Error("Upload foto issue gagal.");
+    return signed.data.publicUrl || signed.data.objectKey;
+  }
+
+  async function registerPushToken() {
+    try {
+      const permission = await Notifications.requestPermissionsAsync();
+      let token = `local-dev-token-${session?.user.id ?? Date.now()}`;
+      if (permission.granted) {
+        const expoToken = await Notifications.getExpoPushTokenAsync().catch(() => null);
+        token = expoToken?.data ?? token;
+      }
+      await request("/api/device-tokens", {
+        method: "POST",
+        body: JSON.stringify({
+          token,
+          platform: "expo",
+          deviceName: "QIMS Mobile Inspector",
+        }),
+      });
+      setPushStatus(permission.granted ? "Expo push token terdaftar." : "Local-dev push token terdaftar.");
+      setMessage("Device token tersimpan.");
+    } catch (error) {
+      setPushStatus(error instanceof Error ? error.message : "Push registration gagal.");
     }
   }
 }
@@ -770,13 +901,19 @@ function IssuesScreen({
   issues,
   mission,
   onDraftChange,
+  onPickPhoto,
+  onSaveDraft,
   onSubmit,
+  photo,
 }: {
   draft: IssueDraft;
   issues: IssueRow[];
   mission: Mission | null;
   onDraftChange: (draft: IssueDraft) => void;
+  onPickPhoto: () => void;
+  onSaveDraft: () => void;
   onSubmit: () => void;
+  photo: IssuePhoto | null;
 }) {
   return (
     <View style={styles.stack}>
@@ -786,7 +923,12 @@ function IssuesScreen({
         <Field label="Kategori" onChangeText={(category) => onDraftChange({ ...draft, category })} value={draft.category} />
         <Field label="Severity" onChangeText={(severity) => onDraftChange({ ...draft, severity })} value={draft.severity} />
         <Field label="Deskripsi" multiline onChangeText={(description) => onDraftChange({ ...draft, description })} value={draft.description} />
-        <PrimaryButton icon={Send} label="Submit Issue" onPress={onSubmit} />
+        <Text style={styles.subtle}>{photo ? `Attachment siap: ${photo.fileName}` : "Attachment foto optional."}</Text>
+        <View style={styles.buttonRow}>
+          <PrimaryButton icon={Upload} label="Photo" onPress={onPickPhoto} />
+          <PrimaryButton icon={Save} label="Save draft" onPress={onSaveDraft} />
+          <PrimaryButton icon={Send} label="Submit Issue" onPress={onSubmit} />
+        </View>
       </Card>
       {issues.map((row) => (
         <Card key={row.issue.id} title={row.issue.title}>
@@ -816,14 +958,18 @@ function ProfileScreen({
   apiUrl,
   onApiUrlChange,
   onLogout,
+  onRegisterPush,
   onSettingsChange,
+  pushStatus,
   settings,
   user,
 }: {
   apiUrl: string;
   onApiUrlChange: (value: string) => void;
   onLogout: () => void;
+  onRegisterPush: () => void;
   onSettingsChange: (settings: Partial<InspectorSettings>) => void;
+  pushStatus: string;
   settings: InspectorSettings | null;
   user?: SessionUser;
 }) {
@@ -836,6 +982,8 @@ function ProfileScreen({
         <ToggleRow label="Eco mode" value={Boolean(settings?.ecoModeEnabled)} onValueChange={(ecoModeEnabled) => onSettingsChange({ ecoModeEnabled })} />
         <ToggleRow label="Low data" value={Boolean(settings?.lowDataModeEnabled)} onValueChange={(lowDataModeEnabled) => onSettingsChange({ lowDataModeEnabled })} />
         <ToggleRow label="Background sync" value={Boolean(settings?.backgroundSyncEnabled)} onValueChange={(backgroundSyncEnabled) => onSettingsChange({ backgroundSyncEnabled })} />
+        <Text style={styles.subtle}>{pushStatus}</Text>
+        <PrimaryButton icon={Bell} label="Register push" onPress={onRegisterPush} />
         <PrimaryButton icon={LogOut} label="Logout" onPress={onLogout} />
       </Card>
     </View>

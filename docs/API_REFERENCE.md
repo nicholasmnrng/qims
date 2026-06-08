@@ -43,5 +43,67 @@ Rate limit Tahap 7 memakai in-memory bucket untuk development/MVP backend contra
 
 - Web dashboard dapat mulai dari role API docs sesuai permission user.
 - Mobile Inspector harus memakai endpoint lightweight `GET /api/inspector/today-mission` untuk home screen.
-- Upload file belum memiliki signed URL route pada MVP backend; frontend harus menunggu tahap storage implementation sebelum mengirim file besar.
-- Realtime dan notification worker contract sudah typed, tetapi transport/worker runtime aktual masuk tahap hardening lanjutan atau deployment integration.
+- Upload file memakai `POST /api/storage/signed-upload` lalu `PUT /api/storage/local-upload?objectKey=...` pada local/dev. Production object storage memakai contract env provider dan credential eksternal.
+- Notification worker local/dev memakai `POST /api/notification-worker/dispatch` untuk mock dispatch pending notification ke device token aktif.
+- Realtime local/dev memakai `GET /api/realtime-events` sebagai event log/polling fallback. Production websocket/SSE/provider masih dependency deployment eksternal.
+
+## Runtime Integration Endpoints
+
+### Device Tokens
+
+- `GET /api/device-tokens`
+- `POST /api/device-tokens`
+
+Permission: authenticated user.
+
+`POST` body:
+
+```json
+{
+  "token": "ExponentPushToken[...]",
+  "platform": "expo",
+  "deviceName": "Inspector phone"
+}
+```
+
+Writes audit action `device_tokens.register`.
+
+### Storage
+
+- `POST /api/storage/signed-upload`
+- `PUT /api/storage/local-upload?objectKey=...`
+- `GET /api/storage/local-upload?objectKey=...`
+
+`POST /api/storage/signed-upload` validates bucket, MIME type, file size, and permission:
+
+- `sop-files`: `sop:manage`
+- `issue-photos`: `issues:create-own` or `issues:manage`
+- `handover-files`: `handover:create-own` or `handover:manage`
+
+Local/dev response returns provider `local-dev`, PUT URL, object key, public URL, expiration timestamp, required headers, and `blockedByExternalCredential: true` when no storage provider env is configured.
+
+### Notification Worker
+
+- `POST /api/notification-worker/dispatch`
+
+Permission: `roles:manage`.
+
+Body:
+
+```json
+{
+  "limit": 50,
+  "mode": "mock",
+  "reason": "Manual dispatch QA"
+}
+```
+
+Processes pending notification recipients and updates delivery status. Local/dev mock marks recipients delivered when the user has an active registered device token and failed otherwise. Writes audit action `notification_worker.dispatch`.
+
+### Realtime Events
+
+- `GET /api/realtime-events?type=notification.created&channel=user:{userId}&page=1&limit=20`
+
+Permission: `notifications:read`.
+
+This is a local/dev event log and lightweight polling fallback. Notification creation publishes `notification.created` events on `user:{userId}` channels. Database notification records remain source of truth.

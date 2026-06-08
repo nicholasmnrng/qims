@@ -16,6 +16,7 @@ import {
 
 import { writeAuditLog } from "@/server/audit/log";
 import { requireSessionPermission } from "@/server/auth/session";
+import { userChannel } from "@/server/contracts/realtime";
 import { db } from "@/server/db";
 import {
   areas,
@@ -41,6 +42,7 @@ import {
 } from "@/server/db/schema";
 import { HttpError } from "./http-error";
 import { paginationMeta, parsePagination } from "./pagination";
+import { publishRealtimeEvent } from "@/server/runtime/realtime-events";
 import { actorAuditFields, toAuditValue } from "./super-admin";
 
 export async function requireOperationalPermission(
@@ -212,6 +214,7 @@ export async function createNotification(input: {
   }
 
   const notificationId = randomUUID();
+  const recipientIds = [...new Set(input.recipientIds)];
   await db.transaction(async (tx) => {
     await tx.insert(notifications).values({
       id: notificationId,
@@ -224,13 +227,31 @@ export async function createNotification(input: {
       createdBy: input.createdBy,
     });
     await tx.insert(notificationRecipients).values(
-      [...new Set(input.recipientIds)].map((userId) => ({
+      recipientIds.map((userId) => ({
         id: randomUUID(),
         notificationId,
         userId,
       })),
     );
   });
+
+  await Promise.all(
+    recipientIds.map((userId) =>
+      publishRealtimeEvent({
+        type: "notification.created",
+        channel: userChannel(userId),
+        actorId: input.createdBy,
+        payload: {
+          notificationId,
+          notificationType: input.type,
+          priority: input.priority ?? "normal",
+          entityType: input.entityType ?? null,
+          entityId: input.entityId ?? null,
+          title: input.title,
+        },
+      }),
+    ),
+  );
 
   return notificationId;
 }

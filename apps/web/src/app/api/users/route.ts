@@ -5,6 +5,7 @@ import { auth } from "@/server/auth";
 import { handleApiError } from "@/server/api/errors";
 import { HttpError } from "@/server/api/http-error";
 import { ok } from "@/server/api/response";
+import { requireSessionPermission } from "@/server/auth/session";
 import {
   actorAuditFields,
   getUserById,
@@ -20,7 +21,7 @@ import { createUserSchema } from "@/server/validation/super-admin";
 
 export async function GET(request: Request) {
   try {
-    await requireSuperAdmin(request);
+    await requireSessionPermission(request, "users:read");
     return ok(await listUsers(request));
   } catch (error) {
     return handleApiError(error);

@@ -114,6 +114,8 @@ export const offlineDraftStatusValues = [
   "conflict",
   "failed",
 ] as const;
+export const deviceTokenPlatformValues = ["expo", "fcm", "apns", "web"] as const;
+export const deviceTokenStatusValues = ["active", "inactive", "failed"] as const;
 
 export const userRoleEnum = pgEnum("user_role", userRoleValues);
 export const userStatusEnum = pgEnum("user_status", userStatusValues);
@@ -149,6 +151,14 @@ export const offlineDraftTypeEnum = pgEnum("offline_draft_type", offlineDraftTyp
 export const offlineDraftStatusEnum = pgEnum(
   "offline_draft_status",
   offlineDraftStatusValues,
+);
+export const deviceTokenPlatformEnum = pgEnum(
+  "device_token_platform",
+  deviceTokenPlatformValues,
+);
+export const deviceTokenStatusEnum = pgEnum(
+  "device_token_status",
+  deviceTokenStatusValues,
 );
 
 export const users = pgTable(
@@ -833,6 +843,52 @@ export const inspectorSettings = pgTable(
   (table) => [index("inspector_settings_updated_at_idx").on(table.updatedAt)],
 );
 
+export const deviceTokens = pgTable(
+  "device_tokens",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    token: text("token").notNull(),
+    platform: deviceTokenPlatformEnum("platform").notNull().default("expo"),
+    status: deviceTokenStatusEnum("status").notNull().default("active"),
+    deviceName: text("device_name"),
+    lastRegisteredAt: timestamp("last_registered_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    lastDeliveredAt: timestamp("last_delivered_at", { withTimezone: true }),
+    lastError: text("last_error"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("device_tokens_token_idx").on(table.token),
+    index("device_tokens_user_id_idx").on(table.userId),
+    index("device_tokens_status_idx").on(table.status),
+    index("device_tokens_platform_idx").on(table.platform),
+    index("device_tokens_last_registered_at_idx").on(table.lastRegisteredAt),
+  ],
+);
+
+export const realtimeEvents = pgTable(
+  "realtime_events",
+  {
+    id: text("id").primaryKey(),
+    type: text("type").notNull(),
+    channel: text("channel").notNull(),
+    actorId: text("actor_id").references(() => users.id, { onDelete: "set null" }),
+    payload: jsonb("payload").$type<Record<string, unknown>>().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("realtime_events_type_idx").on(table.type),
+    index("realtime_events_channel_idx").on(table.channel),
+    index("realtime_events_actor_id_idx").on(table.actorId),
+    index("realtime_events_created_at_idx").on(table.createdAt),
+  ],
+);
+
 export const schema = {
   users,
   sessions,
@@ -864,6 +920,8 @@ export const schema = {
   notificationRecipients,
   offlineDrafts,
   inspectorSettings,
+  deviceTokens,
+  realtimeEvents,
 };
 
 export type UserRole = (typeof userRoleValues)[number];
@@ -875,3 +933,5 @@ export type TaskPriority = (typeof taskPriorityValues)[number];
 export type IssueStatus = (typeof issueStatusValues)[number];
 export type OfflineDraftType = (typeof offlineDraftTypeValues)[number];
 export type OfflineDraftStatus = (typeof offlineDraftStatusValues)[number];
+export type DeviceTokenPlatform = (typeof deviceTokenPlatformValues)[number];
+export type DeviceTokenStatus = (typeof deviceTokenStatusValues)[number];

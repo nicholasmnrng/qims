@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 
 import { handleApiError } from "@/server/api/errors";
 import { ok } from "@/server/api/response";
+import { requireSessionPermission } from "@/server/auth/session";
 import {
   actorAuditFields,
   getUserById,
@@ -21,7 +22,7 @@ type RouteContext = {
 
 export async function GET(request: Request, context: RouteContext) {
   try {
-    await requireSuperAdmin(request);
+    await requireSessionPermission(request, "users:read");
     const { id } = await context.params;
     return ok(await getUserById(id));
   } catch (error) {

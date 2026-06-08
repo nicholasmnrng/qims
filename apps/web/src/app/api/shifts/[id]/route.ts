@@ -1,5 +1,6 @@
 import { handleApiError } from "@/server/api/errors";
 import { ok } from "@/server/api/response";
+import { requireSessionPermission } from "@/server/auth/session";
 import {
   getMasterRecord,
   requireSuperAdmin,
@@ -13,7 +14,7 @@ type RouteContext = {
 
 export async function GET(request: Request, context: RouteContext) {
   try {
-    await requireSuperAdmin(request);
+    await requireSessionPermission(request, "auth:session:read");
     const { id } = await context.params;
     return ok(await getMasterRecord("shifts", id));
   } catch (error) {

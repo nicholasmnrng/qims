@@ -1,6 +1,6 @@
 # QIMS Frontend Web
 
-Tahap 8 menambahkan baseline web dashboard di Next.js App Router untuk role:
+Tahap 8 menambahkan web dashboard di Next.js App Router dan post Tahap 10 gap pass memperluasnya menjadi action-oriented dashboard untuk role:
 
 - Super Admin
 - Supervisor / Leader
@@ -86,19 +86,73 @@ Ringkasan role-aware:
 Memakai:
 
 - `GET /api/users`
+- `POST /api/users`
+- `PATCH /api/users/:id`
 - `GET /api/roles`
+- `GET /api/permissions`
+- `PATCH /api/roles/:id/permissions`
 - `GET /api/sites`
+- `POST /api/sites`
+- `PATCH /api/sites/:id`
+- `GET /api/departments`
+- `POST /api/departments`
+- `PATCH /api/departments/:id`
+- `GET /api/areas`
+- `POST /api/areas`
+- `PATCH /api/areas/:id`
 - `GET /api/shifts`
+- `POST /api/shifts`
+- `PATCH /api/shifts/:id`
+- `GET /api/system-settings`
+- `PATCH /api/system-settings`
+
+Implemented:
+
+- user list/search/filter/pagination
+- create user
+- update role/status/profile fields
+- reason field for important changes
+- role permission update with confirmation
+- site/department/area/shift create/edit/status form
+- system setting JSON edit with reason
+- audit log filter/detail summary
 
 ### Command
 
 Memakai:
 
 - `GET /api/shift-assignments`
+- `POST /api/shift-assignments`
+- `PATCH /api/shift-assignments/:id`
+- `POST /api/shift-assignments/duplicate`
+- `POST /api/shift-assignments/publish`
 - `GET /api/tasks`
+- `POST /api/tasks`
+- `PATCH /api/tasks/:id`
+- `PATCH /api/tasks/:id/priority`
 - `GET /api/issues`
+- `PATCH /api/issues/:id/status`
 - `GET /api/handovers`
 - `GET /api/notifications`
+- `GET /api/procedures`
+- `POST /api/procedures`
+- `POST /api/procedures/:id/versions`
+- `POST /api/procedure-versions/:id/publish`
+- `GET /api/skill-matrix`
+- `POST /api/skill-matrix`
+- `GET /api/realtime-events`
+
+Implemented:
+
+- command center metrics
+- assignment create/edit/duplicate/publish form
+- conflict warnings from backend response
+- task create/edit/status/priority form
+- critical priority confirmation and reason field
+- SOP create, version, publish action
+- skill matrix upsert and skill gap table
+- handover and issue monitoring tables
+- notification list and local realtime event feed
 
 ### Reports
 
@@ -108,6 +162,16 @@ Memakai:
 - `GET /api/reports/task-completion`
 - `GET /api/reports/sop-compliance`
 - `GET /api/reports/issues`
+- `GET /api/reports/shift-completion`
+- `GET /api/reports/skill-gap`
+- `POST /api/reports/export`
+
+Implemented:
+
+- report filters for date/shift/area/inspector/status/severity where supported
+- compact visual summary bars
+- CSV/JSON export UI with reason field
+- read-only guard for roles without export permission
 
 ### Audit
 
@@ -120,7 +184,7 @@ Audit view menyediakan filter ringan untuk audit action dan SOP acknowledgement 
 
 ## UI States
 
-Tahap 8 menyediakan:
+Implemented:
 
 - loading skeleton
 - empty state per panel
@@ -128,9 +192,27 @@ Tahap 8 menyediakan:
 - permission state bila role membuka view tanpa akses
 - responsive layout desktop/tablet/mobile
 - Eco-mode toggle lokal
+- toast success/error/warning/info/loading pattern
+- confirmation modal for important actions
+- status/priority/notification badges
+- API error details surfaced in forms
+
+## Browser QA
+
+Repeatable browser smoke:
+
+```bash
+QIMS_WEB_URL=http://127.0.0.1:3003 npm run qa:web-browser
+```
+
+Coverage:
+
+- login Super Admin, Supervisor, QA Manager, Auditor
+- dashboard render
+- no major console errors
+- mobile viewport has no horizontal overflow
 
 ## Known Limits
 
-- Tahap 8 baseline belum membuat form CRUD lengkap untuk semua workflow.
-- Manual QA role penuh membutuhkan akun user per role di database.
-- Browser screenshot tool tidak tersedia di sesi ini; verifikasi lokal dilakukan dengan build dan HTTP render check.
+- Drag-and-drop priority board is not implemented; current priority board uses compact action forms and backend-backed refresh.
+- Browser QA is automated with Playwright smoke, but stakeholder manual UX review is still needed before Final MVP approval.

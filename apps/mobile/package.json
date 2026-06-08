@@ -18,6 +18,9 @@
   "dependencies": {
     "@react-native-async-storage/async-storage": "^3.1.1",
     "expo": "^56.0.9",
+    "expo-image-manipulator": "~56.0.17",
+    "expo-image-picker": "~56.0.16",
+    "expo-notifications": "~56.0.16",
     "lucide-react-native": "^1.17.0",
     "react": "^19.2.7",
     "react-native": "^0.85.3",

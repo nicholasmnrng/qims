@@ -1,5 +1,6 @@
 import { handleApiError } from "@/server/api/errors";
 import { ok } from "@/server/api/response";
+import { requireSessionPermission } from "@/server/auth/session";
 import {
   createMasterRecord,
   listSimpleMasterData,
@@ -9,7 +10,7 @@ import { createAreaSchema } from "@/server/validation/super-admin";
 
 export async function GET(request: Request) {
   try {
-    await requireSuperAdmin(request);
+    await requireSessionPermission(request, "auth:session:read");
     return ok(await listSimpleMasterData("areas", request));
   } catch (error) {
     return handleApiError(error);

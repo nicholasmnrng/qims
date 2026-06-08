@@ -78,10 +78,24 @@ type NotificationItem = {
   };
 };
 
+type RealtimeEventItem = {
+  id: string;
+  type: string;
+  channel: string;
+  payload: Record<string, unknown>;
+};
+
 type AuditLog = {
   action: string;
   entityType: string;
   entityId: string | null;
+};
+
+type SignedUpload = {
+  url: string;
+  objectKey: string;
+  publicUrl: string;
+  blockedByExternalCredential: boolean;
 };
 
 const baseUrl = (process.env.QIMS_API_URL ?? "http://127.0.0.1:3001").replace(/\/$/, "");
@@ -222,6 +236,10 @@ async function main() {
       reason,
     }),
   });
+  await api<ListResponse<UserListItem>>(supervisor, "/api/users?role=inspector&limit=5");
+  await api<ListResponse<MasterItem>>(supervisor, "/api/areas?limit=5");
+  await api<ListResponse<MasterItem>>(supervisor, "/api/shifts?limit=5");
+  pass("operational read access users areas shifts");
 
   const users = await api<ListResponse<UserListItem>>(
     superAdmin,
@@ -420,6 +438,27 @@ async function main() {
       items: [{ category: "special_note", note: reason, severity: "low" }],
     }),
   });
+  const signedUpload = await api<SignedUpload>(inspector, "/api/storage/signed-upload", {
+    method: "POST",
+    body: JSON.stringify({
+      bucket: "issue-photos",
+      entityType: "issue_reports",
+      entityId: `mvp-smoke-${suffix}`,
+      fileName: `issue-${suffix}.jpg`,
+      contentType: "image/jpeg",
+      sizeBytes: 16,
+    }),
+  });
+  const uploadResponse = await fetch(signedUpload.url, {
+    method: "PUT",
+    headers: {
+      "content-type": "image/jpeg",
+      cookie: inspector.cookie,
+    },
+    body: new Uint8Array([1, 2, 3, 4]),
+  });
+  assert(uploadResponse.ok, `Local signed upload failed: ${uploadResponse.status}`);
+
   const issue = await api<{ id: string }>(inspector, "/api/issues", {
     method: "POST",
     expectedStatus: 201,
@@ -431,6 +470,7 @@ async function main() {
       areaId: area.id,
       taskId: task.id,
       shiftAssignmentId: assignmentResult.assignment.id,
+      attachmentUrl: signedUpload.publicUrl,
     }),
   });
   await api(supervisor, `/api/issues/${issue.id}/status`, {
@@ -460,6 +500,16 @@ async function main() {
   );
   assert(settings.ecoModeEnabled && settings.lowDataModeEnabled, "Eco or low-data setting did not persist.");
 
+  await api(inspector, "/api/device-tokens", {
+    method: "POST",
+    expectedStatus: 201,
+    body: JSON.stringify({
+      token: `local-dev-token-${suffix}`,
+      platform: "expo",
+      deviceName: "MVP smoke device",
+    }),
+  });
+
   await api(inspector, "/api/offline-drafts", {
     method: "POST",
     expectedStatus: 201,
@@ -470,7 +520,24 @@ async function main() {
       clientUpdatedAt: new Date().toISOString(),
     }),
   });
-  pass("inspector mission task SOP handover issue notification offline eco");
+  const dispatch = await api<{ processed: number; delivered: number }>(
+    superAdmin,
+    "/api/notification-worker/dispatch",
+    {
+      method: "POST",
+      body: JSON.stringify({ limit: 50, mode: "mock", reason }),
+    },
+  );
+  assert(dispatch.processed > 0, "Notification worker did not process pending notifications.");
+  assert(dispatch.delivered > 0, "Notification worker did not deliver to registered device token.");
+  const realtime = await api<ListResponse<RealtimeEventItem>>(
+    inspector,
+    `/api/realtime-events?type=notification.created&channel=${encodeURIComponent(
+      `user:${inspectorUser.id}`,
+    )}&limit=5`,
+  );
+  assert(realtime.items.length > 0, "Realtime local event log did not contain notification.created.");
+  pass("inspector mission task SOP handover issue notification offline eco storage push realtime worker");
 
   await api(qaManager, "/api/reports/dashboard-summary");
   await api(qaManager, "/api/reports/task-completion?limit=5");
@@ -534,6 +601,8 @@ async function main() {
     "offline_drafts.upsert",
     "inspector_settings.update",
     "skill_matrix.upsert",
+    "device_tokens.register",
+    "notification_worker.dispatch",
   ];
   for (const action of requiredAuditActions) {
     const audit = await api<ListResponse<AuditLog>>(

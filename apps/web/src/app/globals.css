@@ -30,7 +30,8 @@ body {
 
 button,
 input,
-select {
+select,
+textarea {
   font: inherit;
   letter-spacing: 0;
 }
@@ -224,7 +225,8 @@ button:disabled {
 }
 
 .quick-actions,
-.filter-bar {
+.filter-bar,
+.button-row {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
@@ -238,6 +240,188 @@ button:disabled {
 .primary-button,
 .utility-button {
   padding: 0 13px;
+}
+
+.action-grid-panels {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.action-card {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: 0 12px 26px var(--shadow);
+}
+
+.action-card header {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.action-card header svg {
+  color: var(--accent-2);
+}
+
+.action-card h2 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.form-row:has(> :nth-child(3)) {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.field {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.field input,
+.field select,
+.field textarea {
+  width: 100%;
+  min-height: 40px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  outline: 0;
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.field select[multiple] {
+  min-height: 132px;
+  padding: 8px;
+}
+
+.field textarea {
+  min-height: 94px;
+  padding-top: 9px;
+  resize: vertical;
+}
+
+.field input:focus,
+.field select:focus,
+.field textarea:focus {
+  border-color: var(--focus);
+}
+
+.checkbox-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.form-hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.export-preview {
+  max-height: 190px;
+  margin: 0;
+  overflow: auto;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #0d100c;
+  color: #dfe9d8;
+  font-size: 12px;
+  white-space: pre-wrap;
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(0, 0, 0, 0.58);
+}
+
+.confirm-modal {
+  display: grid;
+  gap: 12px;
+  width: min(420px, 100%);
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.48);
+}
+
+.confirm-modal svg {
+  color: var(--accent);
+}
+
+.confirm-modal h2,
+.confirm-modal p {
+  margin: 0;
+}
+
+.confirm-modal p {
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.toast {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 45;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: min(420px, calc(100vw - 36px));
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+}
+
+.toast.success {
+  border-color: #47745e;
+}
+
+.toast.warning {
+  border-color: var(--accent-2);
+}
+
+.toast.danger {
+  border-color: var(--danger);
+}
+
+.toast button {
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-2);
+  color: var(--text);
 }
 
 .two-column {
@@ -521,6 +705,7 @@ td {
   .metric-row,
   .two-column,
   .key-grid,
+  .action-grid-panels,
   .login-panel {
     grid-template-columns: 1fr;
   }
@@ -547,6 +732,11 @@ td {
 
   .metric-row {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .form-row,
+  .form-row:has(> :nth-child(3)) {
+    grid-template-columns: 1fr;
   }
 
   .filter-bar label {

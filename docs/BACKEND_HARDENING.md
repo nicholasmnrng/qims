@@ -87,7 +87,13 @@ Contract covers:
 - object key naming
 - signed upload URL response shape
 
-No signed URL route is exposed yet; this prevents frontend from assuming direct upload behavior before object storage credentials and provider are configured.
+Runtime endpoints:
+
+- `POST /api/storage/signed-upload`
+- `PUT /api/storage/local-upload?objectKey=...`
+- `GET /api/storage/local-upload?objectKey=...`
+
+Local/dev uses `.qims-storage/` and returns `blockedByExternalCredential: true` when no external storage provider is configured. Production still needs object storage credential/env for Supabase/S3/R2 or equivalent provider.
 
 ## Notification Worker Contract
 
@@ -109,7 +115,14 @@ Contract covers:
 - push notification payload
 - retry backoff cap
 
-Notification database records remain source of truth. Worker delivery updates should write back to `notification_recipients.delivery_status`, `delivered_at`, and related timestamps.
+Runtime endpoints and schema:
+
+- `POST /api/device-tokens`
+- `GET /api/device-tokens`
+- `POST /api/notification-worker/dispatch`
+- `device_tokens` table
+
+Notification database records remain source of truth. The local/dev mock worker updates `notification_recipients.delivery_status`, `delivered_at`, and active token `last_delivered_at`. Production still needs Expo/FCM/APNs credential and managed background runner.
 
 ## Realtime Contract
 
@@ -137,6 +150,13 @@ Event types:
 
 Realtime events are delivery signals only. PostgreSQL remains source of truth.
 
+Runtime fallback:
+
+- `realtime_events` table
+- `GET /api/realtime-events`
+
+Notification creation writes `notification.created` events to `user:{userId}` channels. This provides a testable local/dev polling fallback until a production websocket/SSE/provider is configured.
+
 ## Backend Readiness
 
 Backend is ready for frontend consumption under these constraints:
@@ -145,4 +165,5 @@ Backend is ready for frontend consumption under these constraints:
 - Pagination limit is capped at 100.
 - RBAC, validation, and error handling have focused tests.
 - Rate limit and contract helpers have focused tests.
+- Local/dev signed upload, notification dispatch, and realtime event log are implemented and covered by MVP smoke.
 - Large report export remains direct response for MVP small data only; async export worker is documented as production hardening path.
