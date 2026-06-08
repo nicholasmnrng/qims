@@ -1,10 +1,10 @@
 {
   "expo": {
-    "name": "QIMS Inspector",
-    "slug": "qims-inspector",
+    "name": "Cladtek Quality Inspector",
+    "slug": "cladtek-quality-inspector",
     "version": "0.1.0",
     "orientation": "portrait",
-    "scheme": "qims",
+    "scheme": "cladtekqi",
     "userInterfaceStyle": "dark",
     "assetBundlePatterns": [
       "**/*"
@@ -13,7 +13,7 @@
       "supportsTablet": false
     },
     "android": {
-      "package": "local.qims.inspector"
+      "package": "local.cladtek.qualityinspector"
     },
     "extra": {
       "defaultApiUrl": "http://127.0.0.1:3000"

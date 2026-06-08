@@ -1,4 +1,4 @@
-# QIMS Mobile App Inspector
+# Cladtek Quality Inspector Mobile App
 
 Tahap 9 menambahkan React Native Expo app untuk Inspector. Post Tahap 10 gap pass memperluasnya dengan issue attachment, push token registration, local issue draft, and runtime storage integration.
 
@@ -7,6 +7,8 @@ Tahap 9 menambahkan React Native Expo app untuk Inspector. Post Tahap 10 gap pas
 - App: `apps/mobile`
 - Entry: `apps/mobile/src/App.tsx`
 - Expo config: `apps/mobile/app.json`
+- Expo display name: `Cladtek Quality Inspector`
+- Mobile header/login/boot screen display Cladtek branding.
 
 Commands:
 

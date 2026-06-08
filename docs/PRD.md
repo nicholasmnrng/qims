@@ -1,4 +1,4 @@
-# PRD Final — Quality Inspector Operation Management System
+# PRD Final — Cladtek Quality Inspector
 
 ## Production-Ready Version with Utility UX & Eco-Mode Design
 
@@ -8,11 +8,11 @@
 
 ## 1.1 Nama Produk
 
-**Quality Inspector Operation Management System**
+**Cladtek Quality Inspector**
 
 ## 1.2 Ringkasan Produk
 
-Quality Inspector Operation Management System adalah aplikasi operasional berbasis **Web Dashboard** dan **Mobile App** untuk membantu tim Quality Inspector dalam mengatur jadwal kerja, pembagian manpower, prioritas inspeksi, rotasi area, update SOP, handover antar-shift, skill matrix, dan monitoring aktivitas inspector secara real-time.
+Cladtek Quality Inspector adalah aplikasi operasional berbasis **Web Dashboard** dan **Mobile App** untuk membantu tim Quality Inspector dalam mengatur jadwal kerja, pembagian manpower, prioritas inspeksi, rotasi area, update SOP, handover antar-shift, skill matrix, dan monitoring aktivitas inspector secara real-time.
 
 Produk ini dirancang untuk lingkungan manufaktur dan migas, terutama produksi pipa, di mana kecepatan informasi, akurasi penugasan, dan dokumentasi operasional sangat penting.
 
@@ -2127,6 +2127,6 @@ Satu fitur dianggap selesai jika:
 
 # 26. Final Summary
 
-Quality Inspector Operation Management System harus menjadi command center operasional yang cepat, bersih, dan dapat dipercaya. Fokus utama bukan hanya digitalisasi jadwal, tetapi membangun sistem kerja yang lebih rapi, terdokumentasi, real-time, dan efisien.
+Cladtek Quality Inspector harus menjadi command center operasional yang cepat, bersih, dan dapat dipercaya. Fokus utama bukan hanya digitalisasi jadwal, tetapi membangun sistem kerja yang lebih rapi, terdokumentasi, real-time, dan efisien.
 
 Dengan pendekatan Utility UX & Eco-Mode, aplikasi ini tidak hanya terlihat modern, tetapi benar-benar membantu inspector dan supervisor bekerja lebih cepat, mengurangi beban komunikasi manual, menjaga compliance SOP, dan memastikan handover antar-shift berjalan tanpa kehilangan informasi.

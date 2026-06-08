@@ -1,6 +1,6 @@
-# QIMS Frontend Web
+# Cladtek Quality Inspector Frontend Web
 
-Tahap 8 menambahkan web dashboard di Next.js App Router dan post Tahap 10 gap pass memperluasnya menjadi action-oriented dashboard untuk role:
+Tahap 8 menambahkan web dashboard di Next.js App Router dan post Tahap 10 gap pass memperluasnya menjadi action-oriented dashboard untuk Cladtek Quality Inspector role:
 
 - Super Admin
 - Supervisor / Leader
@@ -18,6 +18,12 @@ File utama:
 - `apps/web/src/app/page.tsx`
 - `apps/web/src/app/web-dashboard.tsx`
 - `apps/web/src/app/globals.css`
+
+Branding:
+
+- App display name: `Cladtek Quality Inspector`
+- Logo asset: `apps/web/public/brand/cladtek-logo.svg`
+- Browser title/icon are configured in `apps/web/src/app/layout.tsx`
 
 ## Login & Session
 

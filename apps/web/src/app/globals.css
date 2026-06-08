@@ -73,11 +73,13 @@ button:disabled {
   display: flex;
   align-items: center;
   gap: 12px;
+  min-width: 0;
 }
 
+.brand-logo-frame,
 .brand-mark {
   display: grid;
-  width: 38px;
+  width: 48px;
   height: 38px;
   place-items: center;
   border: 1px solid #496450;
@@ -86,6 +88,20 @@ button:disabled {
   color: var(--accent);
   font-weight: 800;
   font-variant-numeric: tabular-nums;
+}
+
+.brand-logo-frame {
+  width: 78px;
+  padding: 4px;
+  overflow: hidden;
+  border-color: rgba(18, 183, 223, 0.42);
+  background: #f8fcfd;
+}
+
+.brand-logo {
+  display: block;
+  width: 70px;
+  height: auto;
 }
 
 .brand-block strong,

@@ -3,8 +3,11 @@ import type { ReactNode } from "react";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "QIMS",
-  description: "Quality Inspector Operation Management System",
+  title: "Cladtek Quality Inspector",
+  description: "Cladtek Quality Inspector operation management system",
+  icons: {
+    icon: "/brand/cladtek-logo.svg",
+  },
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

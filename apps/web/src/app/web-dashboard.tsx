@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import {
   Activity,
   AlertTriangle,
@@ -31,6 +32,9 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
+
+const APP_NAME = "Cladtek Quality Inspector";
+const APP_SHORT_NAME = "Cladtek QI";
 
 type UserRole = "super_admin" | "qa_manager" | "supervisor" | "inspector" | "auditor";
 type Permission =
@@ -355,14 +359,8 @@ export function DashboardApp() {
 
   return (
     <main className={`app-shell ${ecoMode ? "eco" : ""}`}>
-      <aside className="sidebar" aria-label="Navigasi QIMS">
-        <div className="brand-block">
-          <div className="brand-mark">QI</div>
-          <div>
-            <strong>QIMS</strong>
-            <span>Operation Web</span>
-          </div>
-        </div>
+      <aside className="sidebar" aria-label={`Navigasi ${APP_NAME}`}>
+        <BrandBlock subtitle="Operation Web" />
 
         <nav className="nav-list">
           {visibleViews.map((view) => {
@@ -603,14 +601,8 @@ function LoginPanel({
   return (
     <section className="login-panel">
       <div className="login-copy">
-        <div className="brand-block">
-          <div className="brand-mark">QI</div>
-          <div>
-            <strong>QIMS</strong>
-            <span>Quality Operation</span>
-          </div>
-        </div>
-        <h1>Command center</h1>
+        <BrandBlock subtitle="Quality Operation" />
+        <h1>{APP_NAME}</h1>
         <p>
           Masuk untuk mengakses dashboard sesuai role, dengan data padat, cepat dibaca,
           dan minim beban visual.
@@ -660,14 +652,30 @@ function LoginPanel({
 function BootScreen() {
   return (
     <main className="boot-screen">
-      <div className="brand-block">
-        <div className="brand-mark">QI</div>
-        <div>
-          <strong>QIMS</strong>
-          <span>Loading session</span>
-        </div>
-      </div>
+      <BrandBlock subtitle="Loading session" />
     </main>
+  );
+}
+
+function BrandBlock({ subtitle }: { subtitle: string }) {
+  return (
+    <div className="brand-block">
+      <div className="brand-logo-frame">
+        <Image
+          alt="Cladtek"
+          className="brand-logo"
+          height={40}
+          priority
+          src="/brand/cladtek-logo.svg"
+          unoptimized
+          width={120}
+        />
+      </div>
+      <div>
+        <strong>{APP_SHORT_NAME}</strong>
+        <span>{subtitle}</span>
+      </div>
+    </div>
   );
 }
 

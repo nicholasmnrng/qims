@@ -1,0 +1,15 @@
+<svg width="240" height="80" viewBox="0 0 240 80" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Cladtek logo</title>
+  <desc id="desc">Cladtek company logo in cyan and white.</desc>
+  <rect width="240" height="80" fill="none"/>
+  <circle cx="52" cy="40" r="34" fill="#12B7DF"/>
+  <circle cx="52" cy="40" r="37" stroke="#12B7DF" stroke-width="2"/>
+  <circle cx="52" cy="40" r="31" stroke="#FFFFFF" stroke-width="2"/>
+  <path d="M22 31H55V38H30V42H55V49H22V31Z" fill="#FFFFFF"/>
+  <path d="M58 31H67V42H93V49H58V31Z" fill="#FFFFFF"/>
+  <path d="M70 31H96L104 49H94L92 45H75L73 49H63L70 31ZM78 39H89L87 35H80L78 39Z" fill="#FFFFFF"/>
+  <path d="M99 31H116C124 31 130 34 130 40C130 46 124 49 116 49H99V31ZM108 38V42H116C119 42 121 41 121 40C121 39 119 38 116 38H108Z" fill="#FFFFFF"/>
+  <path d="M124 31H176V38H158V49H149V38H124V31Z" fill="#12B7DF"/>
+  <path d="M164 31H202V38H173V40H198V44H173V42H202V49H164V31Z" fill="#12B7DF"/>
+  <path d="M205 31H216L225 38L234 31H240V38H230L223 44L230 49H219L211 43L203 49H193L205 40L193 31H205Z" fill="#12B7DF"/>
+</svg>

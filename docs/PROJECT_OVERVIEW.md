@@ -1,8 +1,8 @@
-# QIMS Project Overview
+# Cladtek Quality Inspector Project Overview
 
 ## Product Summary
 
-Quality Inspector Operation Management System (QIMS) adalah sistem operasional untuk tim Quality Inspector di lingkungan manufaktur dan migas. Sistem ini membantu pengaturan jadwal, manpower, area inspeksi, prioritas task, SOP, handover shift, skill matrix, issue reporting, notification, audit trail, dan reporting.
+Cladtek Quality Inspector adalah sistem operasional untuk tim Quality Inspector di lingkungan manufaktur dan migas. Sistem ini membantu pengaturan jadwal, manpower, area inspeksi, prioritas task, SOP, handover shift, skill matrix, issue reporting, notification, audit trail, dan reporting.
 
 PRD resmi project berada di `docs/PRD.md`. Semua keputusan teknis, urutan pekerjaan, dan validasi agent wajib mengacu ke dokumen tersebut.
 

@@ -194,6 +194,9 @@ type SignedUpload = {
 
 type LoadState = "booting" | "login" | "ready";
 
+const APP_NAME = "Cladtek Quality Inspector";
+const APP_SHORT_NAME = "Cladtek QI";
+
 const storageKeys = {
   apiUrl: "qims.mobile.apiUrl",
   sessionCookie: "qims.mobile.sessionCookie",
@@ -410,10 +413,13 @@ export default function App() {
     <SafeAreaView style={styles.shell}>
       <StatusBar barStyle="light-content" />
       <View style={styles.header}>
-        <View>
-          <Text style={styles.eyebrow}>QIMS Inspector</Text>
-          <Text style={styles.title}>{session?.user.name ?? "Offline Inspector"}</Text>
-          <Text style={styles.subtle}>{missionStatus}</Text>
+        <View style={styles.headerBrand}>
+          <CladtekLogo compact />
+          <View style={styles.headerText}>
+            <Text style={styles.eyebrow}>{APP_SHORT_NAME}</Text>
+            <Text style={styles.title}>{session?.user.name ?? "Offline Inspector"}</Text>
+            <Text style={styles.subtle}>{missionStatus}</Text>
+          </View>
         </View>
         <View style={styles.headerActions}>
           {online ? <Wifi color={colors.good} size={18} /> : <WifiOff color={colors.warn} size={18} />}
@@ -696,7 +702,7 @@ export default function App() {
         body: JSON.stringify({
           token,
           platform: "expo",
-          deviceName: "QIMS Mobile Inspector",
+          deviceName: "Cladtek Quality Inspector Mobile",
         }),
       });
       setPushStatus(permission.granted ? "Expo push token terdaftar." : "Local-dev push token terdaftar.");
@@ -746,9 +752,9 @@ function LoginScreen({
     <SafeAreaView style={styles.loginShell}>
       <StatusBar barStyle="light-content" />
       <View style={styles.loginPanel}>
-        <ShieldAlert color={colors.accent} size={34} />
+        <CladtekLogo />
         <Text style={styles.loginTitle}>Today&apos;s Mission</Text>
-        <Text style={styles.loginText}>Masuk sebagai Inspector untuk melihat shift, task prioritas, SOP, dan draft handover terakhir.</Text>
+        <Text style={styles.loginText}>Masuk ke {APP_NAME} untuk melihat shift, task prioritas, SOP, dan draft handover terakhir.</Text>
         <Field label="API URL" onChangeText={onApiUrlChange} value={apiUrl} />
         <Field autoCapitalize="none" label="Email" onChangeText={setEmail} value={email} />
         <Field label="Password" onChangeText={setPassword} secureTextEntry value={password} />
@@ -993,9 +999,21 @@ function ProfileScreen({
 function BootScreen() {
   return (
     <SafeAreaView style={styles.loginShell}>
+      <CladtekLogo />
       <ActivityIndicator color={colors.accent} />
-      <Text style={styles.subtle}>Loading QIMS mobile...</Text>
+      <Text style={styles.subtle}>Loading {APP_NAME}...</Text>
     </SafeAreaView>
+  );
+}
+
+function CladtekLogo({ compact = false }: { compact?: boolean }) {
+  return (
+    <View style={compact ? styles.brandCompact : styles.brandLockup}>
+      <View style={compact ? styles.brandCircleCompact : styles.brandCircle}>
+        <Text style={compact ? styles.brandCircleTextCompact : styles.brandCircleText}>CLAD</Text>
+      </View>
+      <Text style={compact ? styles.brandWordCompact : styles.brandWord}>TEK</Text>
+    </View>
   );
 }
 
@@ -1157,6 +1175,7 @@ const colors = {
   text: "#eef4e8",
   muted: "#aab5a3",
   accent: "#5fc7a5",
+  brand: "#12b7df",
   good: "#71d08f",
   warn: "#e7b65c",
   danger: "#ee7d68",
@@ -1184,6 +1203,60 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: colors.surface,
   },
+  brandLockup: {
+    minHeight: 48,
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+  },
+  brandCompact: {
+    width: 82,
+    minHeight: 34,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  brandCircle: {
+    width: 48,
+    height: 48,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: colors.text,
+    borderRadius: 24,
+    backgroundColor: colors.brand,
+  },
+  brandCircleCompact: {
+    width: 34,
+    height: 34,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1.5,
+    borderColor: colors.text,
+    borderRadius: 17,
+    backgroundColor: colors.brand,
+  },
+  brandCircleText: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: "900",
+  },
+  brandCircleTextCompact: {
+    color: colors.text,
+    fontSize: 9,
+    fontWeight: "900",
+  },
+  brandWord: {
+    marginLeft: -2,
+    color: colors.brand,
+    fontSize: 28,
+    fontWeight: "900",
+  },
+  brandWordCompact: {
+    marginLeft: -1,
+    color: colors.brand,
+    fontSize: 18,
+    fontWeight: "900",
+  },
   loginTitle: {
     color: colors.text,
     fontSize: 28,
@@ -1202,6 +1275,17 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.line,
     backgroundColor: colors.surface,
+  },
+  headerBrand: {
+    minWidth: 0,
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  headerText: {
+    minWidth: 0,
+    flex: 1,
   },
   headerActions: {
     flexDirection: "row",

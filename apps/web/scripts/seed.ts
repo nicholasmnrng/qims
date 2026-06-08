@@ -80,33 +80,33 @@ const demoUsers: Array<{
   role: UserRole;
 }> = [
   {
-    name: "QIMS Super Admin",
+    name: "Cladtek Super Admin",
     email: "superadmin@qims.local",
-    employeeId: "QIMS-SA-001",
+    employeeId: "CLADTEK-SA-001",
     role: "super_admin",
   },
   {
-    name: "QIMS QA Manager",
+    name: "Cladtek QA Manager",
     email: "qamanager@qims.local",
-    employeeId: "QIMS-QA-001",
+    employeeId: "CLADTEK-QA-001",
     role: "qa_manager",
   },
   {
-    name: "QIMS Supervisor",
+    name: "Cladtek Supervisor",
     email: "supervisor@qims.local",
-    employeeId: "QIMS-SPV-001",
+    employeeId: "CLADTEK-SPV-001",
     role: "supervisor",
   },
   {
-    name: "QIMS Inspector",
+    name: "Cladtek Inspector",
     email: "inspector@qims.local",
-    employeeId: "QIMS-INS-001",
+    employeeId: "CLADTEK-INS-001",
     role: "inspector",
   },
   {
-    name: "QIMS Auditor",
+    name: "Cladtek Auditor",
     email: "auditor@qims.local",
-    employeeId: "QIMS-AUD-001",
+    employeeId: "CLADTEK-AUD-001",
     role: "auditor",
   },
 ];
@@ -194,8 +194,8 @@ seed()
   .then(() => {
     console.log(
       seedDemoUsers
-        ? "QIMS seed completed with demo users."
-        : "QIMS backend foundation seed completed.",
+        ? "Cladtek Quality Inspector seed completed with demo users."
+        : "Cladtek Quality Inspector backend foundation seed completed.",
     );
     if (seedDemoUsers) {
       console.log(`Demo password: ${demoPassword}`);
@@ -203,7 +203,7 @@ seed()
     process.exit(0);
   })
   .catch((error) => {
-    console.error("QIMS backend foundation seed failed.");
+    console.error("Cladtek Quality Inspector backend foundation seed failed.");
     console.error(error);
     process.exit(1);
   });
