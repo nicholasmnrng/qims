@@ -7,6 +7,7 @@ import {
   getOwnProcedureVersionOrThrow,
   requireOwnSopPermission,
 } from "@/server/api/inspector";
+import { publishOperationalRealtime } from "@/server/api/supervisor";
 import { db } from "@/server/db";
 import { procedureAcknowledgements } from "@/server/db/schema";
 import { acknowledgeProcedureVersionSchema } from "@/server/validation/inspector";
@@ -36,40 +37,52 @@ export async function POST(request: Request, context: RouteContext) {
     }
 
     const now = new Date();
-    const [acknowledgement] = await db
-      .insert(procedureAcknowledgements)
-      .values({
-        id: randomUUID(),
-        procedureVersionId: id,
-        userId: actor.id,
-        readAt: now,
-        understoodAt: now,
-        criticalConfirmedAt: input.criticalConfirmed ? now : null,
-        note: input.note ?? null,
-      })
-      .onConflictDoUpdate({
-        target: [
-          procedureAcknowledgements.userId,
-          procedureAcknowledgements.procedureVersionId,
-        ],
-        set: {
+    const acknowledgement = await db.transaction(async (tx) => {
+      const [saved] = await tx
+        .insert(procedureAcknowledgements)
+        .values({
+          id: randomUUID(),
+          procedureVersionId: id,
+          userId: actor.id,
           readAt: now,
           understoodAt: now,
           criticalConfirmedAt: input.criticalConfirmed ? now : null,
           note: input.note ?? null,
-          updatedAt: now,
-        },
-      })
-      .returning();
+        })
+        .onConflictDoUpdate({
+          target: [
+            procedureAcknowledgements.userId,
+            procedureAcknowledgements.procedureVersionId,
+          ],
+          set: {
+            readAt: now,
+            understoodAt: now,
+            criticalConfirmedAt: input.criticalConfirmed ? now : null,
+            note: input.note ?? null,
+            updatedAt: now,
+          },
+        })
+        .returning();
 
-    await auditInspectorWrite({
-      actor,
-      action: "procedure_versions.acknowledge",
-      entityType: "procedure_versions",
-      entityId: id,
-      afterValue: acknowledgement,
-      reason: input.note ?? "Inspector acknowledged SOP",
-      request,
+      await auditInspectorWrite({
+        actor,
+        action: "procedure_versions.acknowledge",
+        entityType: "procedure_versions",
+        entityId: id,
+        afterValue: saved,
+        reason: input.note ?? "Inspector acknowledged SOP",
+        request,
+      }, tx);
+
+      return saved;
+    });
+
+    await publishOperationalRealtime({
+      type: "sop.acknowledged",
+      actorId: actor.id,
+      userIds: [actor.id],
+      roles: ["supervisor"],
+      payload: { procedureVersionId: id, userId: actor.id },
     });
 
     return ok(acknowledgement);

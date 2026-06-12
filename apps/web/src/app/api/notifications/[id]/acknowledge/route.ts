@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { handleApiError } from "@/server/api/errors";
 import { ok } from "@/server/api/response";
 import {
+  auditInspectorWrite,
   getOwnNotificationRecipientOrThrow,
   requireOwnNotificationPermission,
 } from "@/server/api/inspector";
@@ -17,13 +18,28 @@ export async function PATCH(request: Request, context: RouteContext) {
   try {
     const actor = await requireOwnNotificationPermission(request);
     const { id } = await context.params;
-    await getOwnNotificationRecipientOrThrow(actor.id, id);
+    const before = await getOwnNotificationRecipientOrThrow(actor.id, id);
     const now = new Date();
-    const [recipient] = await db
-      .update(notificationRecipients)
-      .set({ readAt: now, acknowledgedAt: now })
-      .where(eq(notificationRecipients.id, id))
-      .returning();
+    const recipient = await db.transaction(async (tx) => {
+      const [updated] = await tx
+        .update(notificationRecipients)
+        .set({ readAt: now, acknowledgedAt: now })
+        .where(eq(notificationRecipients.id, id))
+        .returning();
+
+      await auditInspectorWrite({
+        actor,
+        action: "notifications.acknowledge",
+        entityType: "notification_recipients",
+        entityId: id,
+        beforeValue: before,
+        afterValue: updated,
+        reason: "Inspector acknowledged notification",
+        request,
+      }, tx);
+
+      return updated;
+    });
 
     return ok(recipient);
   } catch (error) {

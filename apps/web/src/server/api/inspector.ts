@@ -5,8 +5,10 @@ import {
   desc,
   eq,
   getTableColumns,
+  gte,
   inArray,
   isNull,
+  isNotNull,
   ne,
   or,
 } from "drizzle-orm";
@@ -79,6 +81,7 @@ export async function requireOwnNotificationPermission(request: Request) {
 }
 
 export type InspectorActor = Awaited<ReturnType<typeof requireInspector>>;
+type InspectorDatabase = Pick<typeof db, "insert" | "update">;
 
 export function localWorkDate(date = new Date()) {
   return new Intl.DateTimeFormat("en-CA", {
@@ -98,7 +101,7 @@ export async function auditInspectorWrite(input: {
   afterValue?: unknown;
   reason?: string | null;
   request: Request;
-}) {
+}, database: InspectorDatabase = db) {
   await writeAuditLog({
     actorId: input.actor.id,
     actorRole: input.actor.role,
@@ -109,7 +112,7 @@ export async function auditInspectorWrite(input: {
     afterValue: toAuditValue(input.afterValue),
     reason: input.reason,
     request: input.request,
-  });
+  }, database);
 }
 
 function priorityRank(priority: TaskPriority) {
@@ -132,6 +135,52 @@ export async function getOwnTaskOrThrow(userId: string, taskId: string) {
   }
 
   return task;
+}
+
+export async function pendingCriticalProcedureVersions(userId: string) {
+  const versionIds = await relevantProcedureVersionIds(userId);
+  if (versionIds.length === 0) return [];
+
+  return db
+    .select({
+      id: procedureVersions.id,
+      procedureId: procedureVersions.procedureId,
+      versionNumber: procedureVersions.versionNumber,
+    })
+    .from(procedureVersions)
+    .innerJoin(procedures, eq(procedures.id, procedureVersions.procedureId))
+    .leftJoin(
+      procedureAcknowledgements,
+      and(
+        eq(procedureAcknowledgements.procedureVersionId, procedureVersions.id),
+        eq(procedureAcknowledgements.userId, userId),
+      ),
+    )
+    .where(
+      and(
+        inArray(procedureVersions.id, versionIds),
+        eq(procedureVersions.isCritical, true),
+        isNotNull(procedureVersions.publishedAt),
+        eq(procedures.status, "published"),
+        isNull(procedures.archivedAt),
+        isNull(procedureAcknowledgements.criticalConfirmedAt),
+      ),
+    )
+    .orderBy(desc(procedureVersions.publishedAt));
+}
+
+export async function assertCriticalSopsAcknowledged(userId: string) {
+  const pending = await pendingCriticalProcedureVersions(userId);
+  if (pending.length > 0) {
+    throw new HttpError(
+      409,
+      "CONFLICT",
+      "SOP critical wajib dibaca dan dikonfirmasi sebelum melanjutkan task.",
+      {
+        pendingProcedureVersionIds: pending.map((version) => version.id),
+      },
+    );
+  }
 }
 
 export async function getOwnShiftAssignmentOrThrow(userId: string, assignmentId: string) {
@@ -424,6 +473,7 @@ export async function getTodayMission(userId: string, workDate: string) {
   const pendingSops = proceduresForInspector.items.filter(
     (item) => !item.acknowledgement?.understoodAt,
   );
+  const pendingCriticalSops = await pendingCriticalProcedureVersions(userId);
 
   const latestHandovers =
     assignment?.assignment.areaId
@@ -458,6 +508,8 @@ export async function getTodayMission(userId: string, workDate: string) {
     topPriority,
     activeTasks,
     pendingSops,
+    pendingCriticalSops,
+    taskActionsBlocked: pendingCriticalSops.length > 0,
     latestHandovers,
     unreadNotificationCount: unreadNotifications[0]?.value ?? 0,
     settings: settings ?? defaultInspectorSettings(userId),
@@ -478,6 +530,19 @@ export function defaultInspectorSettings(userId: string) {
     backgroundSyncEnabled: false,
     updatedAt: new Date(),
   };
+}
+
+export function hasOfflineDraftConflict(input: {
+  serverUpdatedAt: Date;
+  clientUpdatedAt: Date | null;
+  serverPayload: Record<string, unknown>;
+  clientPayload: Record<string, unknown>;
+}) {
+  return Boolean(
+    input.clientUpdatedAt &&
+      input.serverUpdatedAt > input.clientUpdatedAt &&
+      JSON.stringify(input.serverPayload) !== JSON.stringify(input.clientPayload),
+  );
 }
 
 export async function listOwnNotifications(request: Request, userId: string) {
@@ -542,27 +607,46 @@ export async function listOwnHandovers(request: Request, userId: string) {
 }
 
 export async function getOwnHandoverDetailOrThrow(userId: string, handoverId: string) {
-  const assignmentRows = await db
-    .select({ areaId: shiftAssignments.areaId })
-    .from(shiftAssignments)
-    .where(eq(shiftAssignments.userId, userId));
-  const areaIds = [...new Set(assignmentRows.map((item) => item.areaId))];
   const [handover] = await db
     .select()
     .from(handovers)
-    .where(
-      and(
-        eq(handovers.id, handoverId),
-        or(
-          eq(handovers.submittedBy, userId),
-          areaIds.length > 0 ? inArray(handovers.areaId, areaIds) : undefined,
-        ),
-      ),
-    )
+    .where(eq(handovers.id, handoverId))
     .limit(1);
 
   if (!handover) {
     throw new HttpError(404, "NOT_FOUND", "Handover tidak ditemukan.");
+  }
+  if (handover.submittedBy !== userId) {
+    const [sourceAssignment] = handover.fromShiftAssignmentId
+      ? await db
+          .select({ workDate: shiftAssignments.workDate })
+          .from(shiftAssignments)
+          .where(eq(shiftAssignments.id, handover.fromShiftAssignmentId))
+          .limit(1)
+      : [];
+    const [accessAssignment] = handover.areaId
+      ? await db
+          .select({ id: shiftAssignments.id })
+          .from(shiftAssignments)
+          .where(
+            and(
+              eq(shiftAssignments.userId, userId),
+              eq(shiftAssignments.areaId, handover.areaId),
+              handover.toShiftId
+                ? eq(shiftAssignments.shiftId, handover.toShiftId)
+                : undefined,
+              sourceAssignment?.workDate
+                ? gte(shiftAssignments.workDate, sourceAssignment.workDate)
+                : undefined,
+              ne(shiftAssignments.assignmentStatus, "cancelled"),
+            ),
+          )
+          .limit(1)
+      : [];
+
+    if (!accessAssignment) {
+      throw new HttpError(404, "NOT_FOUND", "Handover tidak ditemukan.");
+    }
   }
 
   const items = await db

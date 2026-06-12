@@ -58,6 +58,15 @@ Rate limit Tahap 7 memakai in-memory bucket untuk development/MVP backend contra
 - Schedule, task priority/status, SOP publish, dan issue status menghasilkan event realtime pada channel user/area/role yang relevan.
 - Write operasional utama menyimpan perubahan domain, event domain, dan audit log dalam transaksi yang sama. Notification dan realtime tetap dikirim setelah commit; PostgreSQL tetap source of truth.
 
+## Tahap 10.3 Inspector Runtime Notes
+
+- Today Mission mengembalikan `pendingCriticalSops` dan `taskActionsBlocked`.
+- Task acknowledge/status ditolak dengan conflict yang actionable sampai SOP critical dikonfirmasi.
+- Offline sync membuat handover, issue, atau task progress note secara idempotent dan menyimpan referensi entity hasil sync.
+- Offline conflict memakai `clientUpdatedAt` dan pilihan `keep_local`, `use_server`, atau `merge_manually`.
+- Realtime polling hanya membuka channel user/role/area yang dimiliki session dan mendukung cursor waktu `since`.
+- Handover acknowledgement dibatasi ke next-shift inspector yang relevan; submitter tidak dapat acknowledge miliknya sendiri.
+
 ## Runtime Integration Endpoints
 
 ### Device Tokens

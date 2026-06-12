@@ -21,6 +21,8 @@ Response memuat data ringan untuk mobile home:
 - unread notification count
 - eco-mode settings
 - offline cache hints
+- daftar SOP critical yang belum dikonfirmasi
+- `taskActionsBlocked` untuk blocking prompt sebelum task dilanjutkan
 
 ## Own Tasks
 
@@ -38,9 +40,9 @@ Status yang dapat diubah Inspector:
 - `blocked`
 - `done`
 
-`blocked` wajib memiliki `reason`. Setiap update status membuat `task_events` dan audit log `tasks.status_update_own`.
+`blocked` wajib memiliki `reason`. Inspector tidak dapat acknowledge atau mengubah status task selama masih ada SOP critical yang belum dikonfirmasi. Setiap update status menyimpan task, `task_events`, dan audit log `tasks.status_update_own` secara atomik.
 
-`POST /api/tasks/:id/acknowledge` dipakai untuk acknowledge task atau perubahan prioritas. Endpoint ini menulis `task_events`, audit log `tasks.acknowledge`, dan mengisi acknowledgement notification terkait task.
+`POST /api/tasks/:id/acknowledge` dipakai untuk acknowledge task atau perubahan prioritas. Endpoint ini secara atomik menulis `task_events`, audit log `tasks.acknowledge`, dan acknowledgement notification terkait task, lalu mempublikasikan `task.status_changed`.
 
 ## SOP Acknowledgement
 
@@ -57,7 +59,7 @@ Untuk role Inspector, list SOP hanya menampilkan SOP published yang targetnya re
 
 Acknowledgement wajib menyatakan sudah dibaca dan dipahami. Untuk SOP critical, `criticalConfirmed` wajib `true`.
 
-Evidence acknowledgement disimpan di `procedure_acknowledgements` dengan timestamp `readAt`, `understoodAt`, dan `criticalConfirmedAt` bila relevan.
+Evidence acknowledgement dan audit disimpan atomik di `procedure_acknowledgements` dengan timestamp `readAt`, `understoodAt`, dan `criticalConfirmedAt` bila relevan. Event `sop.acknowledged` dipublikasikan untuk monitoring Supervisor.
 
 ## Handovers
 
@@ -77,7 +79,7 @@ Handover item memakai kategori PRD:
 - `safety_concern`
 - `special_note`
 
-Submit handover menulis audit log `handovers.submit`. Acknowledge handover menulis audit log `handovers.acknowledge`.
+Submit handover dan audit log `handovers.submit` disimpan dalam satu transaksi. Handover submitted membuat notification untuk assignment shift berikutnya yang relevan serta event `handover.submitted`. Hanya inspector shift berikutnya yang sesuai area/target shift yang dapat acknowledge; pembuat tidak dapat acknowledge handover sendiri.
 
 ## Issues
 
@@ -99,7 +101,7 @@ Create issue mendukung:
 - shiftAssignmentId
 - attachmentUrl
 
-Issue High dan Critical membuat notification record `issue_alert` untuk Supervisor aktif. Semua create/comment issue menulis `issue_events` dan audit log.
+Issue High dan Critical membuat notification record `issue_alert` untuk Supervisor aktif. Semua issue membuat event `issue.created`. Create/comment issue menyimpan `issue_events` dan audit log secara atomik.
 
 ## Notifications
 
@@ -130,7 +132,21 @@ Offline draft endpoint menyimpan draft mobile dengan `localDraftId` agar sync id
 - `errorMessage`
 - `nextAction`
 
-Tahap 4 tidak melakukan auto-submit draft secara diam-diam. Saat online, mobile tetap memakai endpoint eksplisit seperti `POST /api/handovers` atau `POST /api/issues`.
+`POST /api/offline-drafts/sync` memvalidasi payload berdasarkan tipe dan melakukan sinkronisasi aktual:
+
+- `handover` membuat handover beserta item;
+- `issue` membuat issue report;
+- `task_note` membuat task progress event.
+
+Sync bersifat idempotent berdasarkan `localDraftId`. Draft yang berhasil berubah menjadi `synced` dan menyimpan `syncedEntityType`/`syncedEntityId`. Conflict mendukung pilihan `keep_local`, `use_server`, dan `merge_manually`; error per draft dikembalikan secara actionable tanpa membocorkan error internal.
+
+`POST /api/offline-drafts` juga mendeteksi stale update memakai `clientUpdatedAt`.
+
+## Realtime Polling
+
+- `GET /api/realtime-events`
+
+Inspector hanya dapat membaca channel `user:{ownUserId}`, `role:inspector`, dan area dari assignment miliknya. Query mendukung `channel`, `type`, `since`, `page`, dan `limit`. Permintaan channel user lain ditolak.
 
 ## Eco-Mode Settings
 
@@ -160,4 +176,7 @@ Tahap 4 write actions menghasilkan audit log:
 - `issues.create`
 - `issues.comment`
 - `offline_drafts.upsert`
+- `tasks.progress_note`
+- `notifications.read`
+- `notifications.acknowledge`
 - `inspector_settings.update`

@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 
-import { and, count, desc, eq } from "drizzle-orm";
+import { and, count, desc, eq, gte, inArray } from "drizzle-orm";
 
 import { paginationMeta, parsePagination } from "@/server/api/pagination";
 import { db } from "@/server/db";
@@ -46,14 +46,27 @@ export async function publishRealtimeEventToChannels(input: {
   );
 }
 
-export async function listRealtimeEvents(request: Request) {
+export async function listRealtimeEvents(request: Request, allowedChannels: string[]) {
   const url = new URL(request.url);
   const pagination = parsePagination(url.searchParams);
-  const channel = url.searchParams.get("channel") ?? undefined;
-  const type = url.searchParams.get("type") ?? undefined;
+  const { realtimeEventsQuerySchema } = await import("@/server/validation/runtime");
+  const query = realtimeEventsQuerySchema.parse({
+    channel: url.searchParams.get("channel") ?? undefined,
+    type: url.searchParams.get("type") ?? undefined,
+    since: url.searchParams.get("since") ?? undefined,
+  });
+  const channels = [...new Set(allowedChannels)];
+  if (query.channel && !channels.includes(query.channel)) {
+    const { HttpError } = await import("@/server/api/http-error");
+    throw new HttpError(403, "VALIDATION_ERROR", "Channel realtime tidak diizinkan.");
+  }
+  const selectedChannels = query.channel ? [query.channel] : channels;
   const where = and(
-    channel ? eq(realtimeEvents.channel, channel) : undefined,
-    type ? eq(realtimeEvents.type, type) : undefined,
+    selectedChannels.length > 0
+      ? inArray(realtimeEvents.channel, selectedChannels)
+      : eq(realtimeEvents.channel, "__none__"),
+    query.type ? eq(realtimeEvents.type, query.type) : undefined,
+    query.since ? gte(realtimeEvents.createdAt, new Date(query.since)) : undefined,
   );
 
   const [items, total] = await Promise.all([

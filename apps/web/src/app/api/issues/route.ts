@@ -1,24 +1,17 @@
 import { handleApiError } from "@/server/api/errors";
 import { ok } from "@/server/api/response";
+import { listIssues } from "@/server/api/supervisor";
 import {
-  listIssues,
-  notifyActiveSupervisors,
-  writeIssueEvent,
-} from "@/server/api/supervisor";
-import {
-  auditInspectorWrite,
-  assertInspectorAreaAccess,
-  getOwnShiftAssignmentOrThrow,
-  getOwnTaskOrThrow,
   listOwnIssues,
   requireOwnIssuePermission,
 } from "@/server/api/inspector";
+import {
+  createInspectorIssue,
+  publishInspectorIssueSignals,
+} from "@/server/api/inspector-writes";
 import { requireSession } from "@/server/auth/session";
 import { requireUserPermission } from "@/server/auth/session";
-import { db } from "@/server/db";
-import { issueReports } from "@/server/db/schema";
 import { createIssueSchema } from "@/server/validation/inspector";
-import { randomUUID } from "node:crypto";
 
 export async function GET(request: Request) {
   try {
@@ -39,61 +32,14 @@ export async function POST(request: Request) {
   try {
     const actor = await requireOwnIssuePermission(request);
     const input = createIssueSchema.parse(await request.json());
-    if (input.taskId) {
-      await getOwnTaskOrThrow(actor.id, input.taskId);
-    }
-    if (input.shiftAssignmentId) {
-      await getOwnShiftAssignmentOrThrow(actor.id, input.shiftAssignmentId);
-    }
-    if (input.areaId) {
-      await assertInspectorAreaAccess(actor.id, input.areaId);
-    }
-
-    const id = randomUUID();
-    const [issue] = await db
-      .insert(issueReports)
-      .values({
-        id,
-        title: input.title,
-        description: input.description ?? null,
-        category: input.category,
-        severity: input.severity,
-        areaId: input.areaId ?? null,
-        taskId: input.taskId ?? null,
-        shiftAssignmentId: input.shiftAssignmentId ?? null,
-        reportedBy: actor.id,
-        attachmentUrl: input.attachmentUrl ?? null,
-      })
-      .returning();
-
-    await writeIssueEvent({
-      issueId: id,
-      eventType: "issue.create",
-      newValue: issue,
-      note: "Inspector reported issue",
-      actorId: actor.id,
-    });
-
-    if (issue.severity === "critical" || issue.severity === "high") {
-      await notifyActiveSupervisors({
-        title: "Issue lapangan prioritas tinggi",
-        message: issue.title,
-        type: "issue_alert",
-        priority: issue.severity,
-        entityType: "issue_reports",
-        entityId: id,
-        createdBy: actor.id,
-      });
-    }
-
-    await auditInspectorWrite({
+    const issue = await createInspectorIssue({
       actor,
-      action: "issues.create",
-      entityType: "issue_reports",
-      entityId: id,
-      afterValue: issue,
-      reason: "Inspector issue report",
+      payload: input,
       request,
+    });
+    await publishInspectorIssueSignals({
+      actor,
+      issue,
     });
 
     return ok(issue, { status: 201 });

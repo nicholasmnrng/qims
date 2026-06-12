@@ -192,3 +192,11 @@ Tahap 10.2 memperketat write path Supervisor:
 - skill matrix upsert dan audit disimpan dalam satu transaksi;
 - realtime event dipublikasikan setelah commit ke channel user, area, dan role yang relevan;
 - notification/realtime bukan source of truth dan kegagalan delivery tidak membatalkan data operasional yang sudah committed.
+
+## Inspector Ownership, Sync, and Realtime Hardening
+
+- Task action memiliki server-side critical SOP blocking guard.
+- Task/SOP/handover/issue/notification write menyimpan domain record/event dan audit secara atomik.
+- Handover next-shift access memeriksa area, target shift, tanggal sumber assignment, dan submitter.
+- Offline sync memvalidasi payload per draft type, idempotent berdasarkan `localDraftId`, menyimpan entity reference, serta menangani stale conflict.
+- Realtime polling membatasi channel terhadap session user, role, dan area assignment; arbitrary user channel tidak dapat dibaca.

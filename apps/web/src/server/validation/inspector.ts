@@ -98,10 +98,18 @@ export const upsertOfflineDraftSchema = z.object({
   draftType: z.enum(offlineDraftTypeValues),
   payload: z.record(z.string(), z.unknown()),
   clientUpdatedAt: z.string().datetime().nullable().optional(),
+  conflictResolution: z
+    .enum(["keep_local", "use_server", "merge_manually"] as const)
+    .optional(),
 });
 
 export const syncOfflineDraftsSchema = z.object({
   drafts: z.array(upsertOfflineDraftSchema).min(1).max(50),
+});
+
+export const taskNoteDraftPayloadSchema = z.object({
+  taskId: z.string().uuid(),
+  note: z.string().trim().min(1).max(1000),
 });
 
 export const updateInspectorSettingsSchema = z.object({

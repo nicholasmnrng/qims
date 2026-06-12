@@ -6,6 +6,7 @@ import {
   requireOwnIssuePermission,
 } from "@/server/api/inspector";
 import { writeIssueEvent } from "@/server/api/supervisor";
+import { db } from "@/server/db";
 import { commentIssueSchema } from "@/server/validation/inspector";
 
 type RouteContext = {
@@ -19,22 +20,24 @@ export async function POST(request: Request, context: RouteContext) {
     const input = commentIssueSchema.parse(await request.json());
     const issue = await getOwnIssueDetailOrThrow(actor.id, id);
 
-    await writeIssueEvent({
-      issueId: id,
-      eventType: "issue.comment",
-      note: input.note,
-      actorId: actor.id,
-    });
+    await db.transaction(async (tx) => {
+      await writeIssueEvent({
+        issueId: id,
+        eventType: "issue.comment",
+        note: input.note,
+        actorId: actor.id,
+      }, tx);
 
-    await auditInspectorWrite({
-      actor,
-      action: "issues.comment",
-      entityType: "issue_reports",
-      entityId: id,
-      beforeValue: issue.issue,
-      afterValue: { note: input.note },
-      reason: input.note,
-      request,
+      await auditInspectorWrite({
+        actor,
+        action: "issues.comment",
+        entityType: "issue_reports",
+        entityId: id,
+        beforeValue: issue.issue,
+        afterValue: { note: input.note },
+        reason: input.note,
+        request,
+      }, tx);
     });
 
     return ok({ issueId: id, note: input.note });

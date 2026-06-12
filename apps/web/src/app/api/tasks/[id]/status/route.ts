@@ -12,6 +12,7 @@ import {
 } from "@/server/api/supervisor";
 import {
   auditInspectorWrite,
+  assertCriticalSopsAcknowledged,
   getOwnTaskOrThrow,
   requireOwnTaskPermission,
 } from "@/server/api/inspector";
@@ -35,35 +36,54 @@ export async function PATCH(request: Request, context: RouteContext) {
       const actor = await requireOwnTaskPermission(request);
       const before = await getOwnTaskOrThrow(actor.id, id);
       const input = updateOwnTaskStatusSchema.parse(await request.json());
-      const [task] = await db
-        .update(tasks)
-        .set({
-          status: input.status,
-          updatedBy: actor.id,
-          updatedAt: new Date(),
-          closedAt: taskClosedAt(input.status),
-        })
-        .where(eq(tasks.id, id))
-        .returning();
+      await assertCriticalSopsAcknowledged(actor.id);
+      const reason =
+        input.reason ?? input.progressNote ?? "Inspector status update";
+      const task = await db.transaction(async (tx) => {
+        const [updated] = await tx
+          .update(tasks)
+          .set({
+            status: input.status,
+            updatedBy: actor.id,
+            updatedAt: new Date(),
+            closedAt: taskClosedAt(input.status),
+          })
+          .where(eq(tasks.id, id))
+          .returning();
 
-      await writeTaskEvent({
-        taskId: id,
-        eventType: "task.status_update_own",
-        oldValue: { status: before.status },
-        newValue: { status: task.status, progressNote: input.progressNote ?? null },
-        reason: input.reason ?? input.progressNote ?? "Inspector status update",
-        actorId: actor.id,
+        await writeTaskEvent({
+          taskId: id,
+          eventType: "task.status_update_own",
+          oldValue: { status: before.status },
+          newValue: {
+            status: updated.status,
+            progressNote: input.progressNote ?? null,
+          },
+          reason,
+          actorId: actor.id,
+        }, tx);
+
+        await auditInspectorWrite({
+          actor,
+          action: "tasks.status_update_own",
+          entityType: "tasks",
+          entityId: id,
+          beforeValue: before,
+          afterValue: updated,
+          reason,
+          request,
+        }, tx);
+
+        return updated;
       });
 
-      await auditInspectorWrite({
-        actor,
-        action: "tasks.status_update_own",
-        entityType: "tasks",
-        entityId: id,
-        beforeValue: before,
-        afterValue: task,
-        reason: input.reason ?? input.progressNote ?? "Inspector status update",
-        request,
+      await publishOperationalRealtime({
+        type: "task.status_changed",
+        actorId: actor.id,
+        userIds: [actor.id],
+        areaIds: [task.areaId],
+        roles: ["supervisor"],
+        payload: { taskId: task.id, status: task.status },
       });
 
       return ok(task);

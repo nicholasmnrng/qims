@@ -12,6 +12,7 @@
     "qa:mvp-smoke": "tsx scripts/final-mvp-smoke.ts",
     "qa:super-admin": "tsx scripts/super-admin-qa.ts",
     "qa:supervisor": "tsx scripts/supervisor-qa.ts",
+    "qa:inspector": "tsx scripts/inspector-qa.ts",
     "qa:web-browser": "tsx scripts/browser-qa.ts",
     "qa:worker": "tsx scripts/qa-runner.ts",
     "db:generate": "drizzle-kit generate",

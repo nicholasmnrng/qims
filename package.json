@@ -18,6 +18,7 @@
     "qa:mvp-smoke": "npm --workspace apps/web run qa:mvp-smoke",
     "qa:super-admin": "npm --workspace apps/web run qa:super-admin",
     "qa:supervisor": "npm --workspace apps/web run qa:supervisor",
+    "qa:inspector": "npm --workspace apps/web run qa:inspector",
     "qa:web-browser": "npm --workspace apps/web run qa:web-browser",
     "qa:worker": "npm --workspace apps/web run qa:worker",
     "mobile:start": "npm --workspace apps/mobile run start",
