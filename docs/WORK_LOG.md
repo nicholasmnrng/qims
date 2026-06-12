@@ -421,3 +421,23 @@ Log ini menjadi catatan utama pekerjaan agent. Semua agent wajib menambah entry 
 - GitHub issue: #12.
 - Parent issue: #9 remains open.
 - Detail report: `docs/agent-reports/2026-06-13-backend-inspector-gap-closure.md`.
+
+## 2026-06-13 - Tahap 10.4 Backend QA Manager Gap Closure
+
+### PRD Validation
+- PRD sections checked before work: 4.2 QA Manager, 7.12 Audit Trail, 7.13 Reporting & Analytics, 14.10 Reports, 15 Security Requirements, 16.1 Web, 16.3 Backend, 21 Phase 1 Production MVP, 22 Acceptance Criteria Global, 24 Definition of Done.
+- Agent skill used: `agent-skills/backend-agent/SKILL.md`, `agent-skills/qa-agent/SKILL.md`, and `agent-skills/stage-delivery-agent/SKILL.md`.
+- Work completed: completed applicable report filters, corrected dashboard default date scope, added SOP cohort/status filtering, reduced shift task query scope, prevented silent direct-export truncation, hardened async export paging/ownership/error state, and added focused tests plus API/export QA.
+- Files changed: report service/validation/tests, async export routes, QA Manager QA script, package scripts, API/hardening docs, work log, and detail report.
+- Tests/checks run: `npm run typecheck` passed; `npm test` passed with 9 files and 52 tests; `npm run lint` passed; `npm run build` passed; `QIMS_API_URL=http://127.0.0.1:3012 npm run qa:qa-manager` passed.
+- PRD sections checked after work: 4.2, 7.12, 7.13, 14.10, 15, 16.1, 16.3, 21, 22, 24.
+- Requirements satisfied: QA Manager read-only reports, applicable server filters/pagination, audited direct and async export, job ownership, and operational write denial.
+- Requirements not yet satisfied: PDF/native Excel output and report modules outside API section 14.10 remain explicit gaps; production very-large export remains externally blocked.
+- Assumptions made: role section 4 read-only definition takes precedence over ambiguous QA Manager SOP authoring text pending user approval.
+- Deviations from PRD: CSV/JSON remain the implemented formats; PDF/XLSX are not claimed complete.
+- User approval needed: no intermediate approval required; user authorized continuation through Tahap 10.5.
+
+### Notes
+- GitHub issue: #13.
+- Parent issue: #9 remains open.
+- Detail report: `docs/agent-reports/2026-06-13-backend-qa-manager-gap-closure.md`.

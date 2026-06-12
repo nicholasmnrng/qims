@@ -67,6 +67,16 @@ Rate limit Tahap 7 memakai in-memory bucket untuk development/MVP backend contra
 - Realtime polling hanya membuka channel user/role/area yang dimiliki session dan mendukung cursor waktu `since`.
 - Handover acknowledgement dibatasi ke next-shift inspector yang relevan; submitter tidak dapat acknowledge miliknya sendiri.
 
+## Tahap 10.4 QA Manager Runtime Notes
+
+- Dashboard summary memakai date range hari ini secara default dan menerima filter operasional lintas shift/area/inspector.
+- Task dan issue report kini menerapkan `shiftId`; SOP compliance menerapkan date/cohort/status filters.
+- Date range terbalik ditolak sebelum query.
+- Shift completion hanya memuat task untuk assignment pada page aktif.
+- Direct export tidak lagi terpotong diam-diam: maksimal 100 baris dan mengarahkan dataset besar ke async job.
+- Local async export mengumpulkan pagination hingga 5000 baris; status/download memerlukan permission export dan ownership.
+- QA Manager tetap read-only untuk operasional sesuai definisi role PRD.
+
 ## Runtime Integration Endpoints
 
 ### Device Tokens

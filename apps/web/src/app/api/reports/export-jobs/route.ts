@@ -7,19 +7,12 @@ import { handleApiError } from "@/server/api/errors";
 import { ok } from "@/server/api/response";
 import { requireReportsExport, exportReport } from "@/server/api/reports";
 import { eq } from "drizzle-orm";
-import { z } from "zod";
-
-const createJobSchema = z.object({
-  reportType: z.enum(["shift-completion", "task-completion", "sop-compliance", "skill-gap", "issues"]),
-  format: z.enum(["csv", "json"]).default("csv"),
-  filters: z.record(z.string(), z.unknown()).default({}),
-  reason: z.string().trim().min(1).max(500),
-});
+import { exportReportSchema } from "@/server/validation/reports";
 
 export async function POST(req: NextRequest) {
   try {
     const actor = await requireReportsExport(req);
-    const input = createJobSchema.parse(await req.json());
+    const input = exportReportSchema.parse(await req.json());
     const startedAt = new Date();
     const id = randomUUID();
 
@@ -35,7 +28,10 @@ export async function POST(req: NextRequest) {
     try {
       const reportRequest = new Request(req.url, {
         method: "POST",
-        headers: req.headers,
+        headers: {
+          ...Object.fromEntries(req.headers.entries()),
+          "x-qims-async-export": "true",
+        },
         body: JSON.stringify(input),
       });
       const report = await exportReport(reportRequest);
@@ -58,7 +54,7 @@ export async function POST(req: NextRequest) {
         status: "failed",
         completedAt: new Date(),
         updatedAt: new Date(),
-        error: error instanceof Error ? error.message : "Export job failed.",
+        error: "Export job failed. Check filters or use the production worker for larger data.",
       }).where(eq(backgroundJobs.id, job.id));
       throw error;
     }

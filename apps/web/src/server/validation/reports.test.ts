@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
   exportReportSchema,
   issueReportQuerySchema,
+  shiftCompletionReportQuerySchema,
+  sopComplianceReportQuerySchema,
   taskCompletionReportQuerySchema,
 } from "./reports";
 
@@ -52,5 +54,29 @@ describe("reports validation", () => {
       reportType: "task-completion",
       format: "json",
     });
+  });
+
+  it("rejects reversed report date ranges", () => {
+    expect(() =>
+      taskCompletionReportQuerySchema.parse({
+        dateFrom: "2026-06-30",
+        dateTo: "2026-06-01",
+      }),
+    ).toThrow();
+  });
+
+  it("validates shift and SOP report status filters", () => {
+    expect(
+      shiftCompletionReportQuerySchema.parse({
+        shiftId: "22222222-2222-4222-8222-222222222222",
+        status: "published",
+      }),
+    ).toMatchObject({ status: "published" });
+    expect(
+      sopComplianceReportQuerySchema.parse({
+        areaId: "33333333-3333-4333-8333-333333333333",
+        status: "pending",
+      }),
+    ).toMatchObject({ status: "pending" });
   });
 });

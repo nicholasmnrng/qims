@@ -26,6 +26,8 @@ Ringkasan untuk dashboard QA Manager:
 
 Default tanggal memakai `Asia/Makassar`.
 
+Dashboard menerima filter `dateFrom`, `dateTo`, `shiftId`, `areaId`, `inspectorId`, `severity`, dan `priority`. Tanpa date range, data default memakai hari ini. Response mengembalikan filter efektif.
+
 ## Shift Completion
 
 - `GET /api/reports/shift-completion`
@@ -57,6 +59,7 @@ Filters:
 - `inspectorId`
 - `status`
 - `priority`
+- `shiftId`
 
 Response menyertakan summary:
 
@@ -78,6 +81,19 @@ Response per SOP version:
 - compliance rate
 
 Target mengikuti SOP target record dari Tahap 3.
+
+Filters:
+
+- `page`
+- `limit`
+- `dateFrom`
+- `dateTo`
+- `shiftId`
+- `areaId`
+- `inspectorId`
+- `status` (`acknowledged` atau `pending`)
+
+Filter area/shift/inspector membatasi cohort penerima yang dihitung dalam compliance.
 
 ## Skill Gap
 
@@ -106,6 +122,7 @@ Filters:
 - `inspectorId`
 - `status`
 - `severity`
+- `shiftId`
 
 Response menyertakan issue list dan summary:
 
@@ -144,7 +161,13 @@ Supported `format`:
 - `csv`
 - `json`
 
-Export Tahap 5 dibatasi untuk data kecil dan mengembalikan content langsung di response. Export besar/async masuk Tahap Backend Hardening.
+Direct export dibatasi maksimal 100 baris. Jika hasil lebih besar, endpoint mengembalikan conflict yang mengarahkan client memakai async export:
+
+- `POST /api/reports/export-jobs`
+- `GET /api/reports/export-jobs/:id`
+- `GET /api/reports/export-jobs/:id/download`
+
+Local async export mengumpulkan pagination hingga 5000 baris. Dataset lebih besar membutuhkan production worker. Job status/download hanya dapat dibaca pembuat job yang masih memiliki `reports:export`, atau Super Admin.
 
 ## Audit Coverage
 
@@ -153,3 +176,5 @@ Export mencatat audit log:
 - `reports.export`
 
 Read-only dashboard/report endpoint tidak mengubah data operasional.
+
+QA Manager tetap tidak memiliki operational write permission. Ketentuan role section 4 menjadikan QA Manager reporting/export read-only; SOP authoring tidak diaktifkan pada role ini karena PRD section 7.6 bertentangan dengan role definition dan belum mendapat keputusan perubahan permission.

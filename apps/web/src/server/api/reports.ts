@@ -1,4 +1,16 @@
-import { and, asc, count, desc, eq, gte, isNull, lte, ne, or } from "drizzle-orm";
+import {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  gte,
+  inArray,
+  isNull,
+  lte,
+  ne,
+  or,
+} from "drizzle-orm";
 
 import { writeAuditLog } from "@/server/audit/log";
 import { requireSessionPermission } from "@/server/auth/session";
@@ -22,6 +34,7 @@ import {
 } from "@/server/db/schema";
 import { paginationMeta, parsePagination } from "./pagination";
 import { resolveProcedureRecipients } from "./supervisor";
+import { HttpError } from "./http-error";
 
 export async function requireReportsRead(request: Request) {
   return requireSessionPermission(request, "reports:read");
@@ -81,30 +94,107 @@ function taskCompleted(status: TaskStatus) {
 export async function dashboardSummary(request: Request) {
   await requireReportsRead(request);
   const today = localWorkDate();
+  const url = new URL(request.url);
+  const { reportFiltersSchema, toReportFilters } = await import(
+    "@/server/validation/reports"
+  );
+  const parsedFilters = reportFiltersSchema.parse(toReportFilters(url.searchParams));
+  const filters = {
+    ...parsedFilters,
+    dateFrom: parsedFilters.dateFrom ?? today,
+    dateTo: parsedFilters.dateTo ?? today,
+  };
   const activeAreas = await db
     .select({ id: areas.id, code: areas.code, name: areas.name })
     .from(areas)
-    .where(eq(areas.status, "active"));
+    .where(
+      and(
+        eq(areas.status, "active"),
+        filters.areaId ? eq(areas.id, filters.areaId) : undefined,
+      ),
+    );
   const todayAssignments = await db
     .select()
     .from(shiftAssignments)
     .where(
       and(
-        eq(shiftAssignments.workDate, today),
+        gte(shiftAssignments.workDate, filters.dateFrom),
+        lte(shiftAssignments.workDate, filters.dateTo),
+        filters.shiftId ? eq(shiftAssignments.shiftId, filters.shiftId) : undefined,
+        filters.areaId ? eq(shiftAssignments.areaId, filters.areaId) : undefined,
+        filters.inspectorId
+          ? eq(shiftAssignments.userId, filters.inspectorId)
+          : undefined,
         ne(shiftAssignments.assignmentStatus, "cancelled"),
       ),
     );
-  const todayTasks = await db.select().from(tasks);
+  const todayTasks = await db
+    .select({ task: tasks })
+    .from(tasks)
+    .leftJoin(
+      shiftAssignments,
+      eq(shiftAssignments.id, tasks.shiftAssignmentId),
+    )
+    .where(
+      and(
+        filters.dateFrom
+          ? gte(tasks.createdAt, startOfDate(filters.dateFrom)!)
+          : undefined,
+        filters.dateTo
+          ? lte(tasks.createdAt, endOfDate(filters.dateTo)!)
+          : undefined,
+        filters.shiftId
+          ? eq(shiftAssignments.shiftId, filters.shiftId)
+          : undefined,
+        filters.areaId ? eq(tasks.areaId, filters.areaId) : undefined,
+        filters.inspectorId
+          ? eq(tasks.assignedUserId, filters.inspectorId)
+          : undefined,
+        filters.priority ? eq(tasks.priority, filters.priority) : undefined,
+      ),
+    )
+    .then((rows) => rows.map((row) => row.task));
   const openTasks = todayTasks.filter((task) => !["closed", "cancelled"].includes(task.status));
   const criticalTasks = openTasks.filter((task) => task.priority === "critical");
-  const issueRows = await db.select().from(issueReports);
-  const handoverRows = await db.select().from(handovers).where(
-    or(
-      eq(handovers.status, "draft"),
-      eq(handovers.status, "submitted"),
-      eq(handovers.status, "read_by_next_shift"),
-    ),
-  );
+  const issueRows = await db
+    .select({ issue: issueReports })
+    .from(issueReports)
+    .leftJoin(
+      shiftAssignments,
+      eq(shiftAssignments.id, issueReports.shiftAssignmentId),
+    )
+    .where(
+      and(
+        gte(issueReports.createdAt, startOfDate(filters.dateFrom)!),
+        lte(issueReports.createdAt, endOfDate(filters.dateTo)!),
+        filters.shiftId
+          ? eq(shiftAssignments.shiftId, filters.shiftId)
+          : undefined,
+        filters.areaId ? eq(issueReports.areaId, filters.areaId) : undefined,
+        filters.inspectorId
+          ? eq(issueReports.reportedBy, filters.inspectorId)
+          : undefined,
+        filters.severity
+          ? eq(issueReports.severity, filters.severity)
+          : undefined,
+      ),
+    )
+    .then((rows) => rows.map((row) => row.issue));
+  const handoverRows = await db
+    .select()
+    .from(handovers)
+    .where(
+      and(
+        gte(handovers.createdAt, startOfDate(filters.dateFrom)!),
+        lte(handovers.createdAt, endOfDate(filters.dateTo)!),
+        filters.areaId ? eq(handovers.areaId, filters.areaId) : undefined,
+        or(
+          eq(handovers.status, "draft"),
+          eq(handovers.status, "submitted"),
+          eq(handovers.status, "read_by_next_shift"),
+        ),
+      ),
+    );
   const publishedVersions = await db
     .select({ id: procedureVersions.id })
     .from(procedureVersions)
@@ -131,6 +221,7 @@ export async function dashboardSummary(request: Request) {
 
   return {
     workDate: today,
+    filters,
     activeInspectorsToday: new Set(todayAssignments.map((item) => item.userId)).size,
     openCriticalTasks: criticalTasks.length,
     areaCoverage: {
@@ -161,8 +252,12 @@ function parseReportRequest(request: Request) {
 export async function shiftCompletionReport(request: Request) {
   await requireReportsRead(request);
   const { pagination, searchParams } = parseReportRequest(request);
-  const { reportFiltersSchema, toReportFilters } = await import("@/server/validation/reports");
-  const filters = reportFiltersSchema.parse(toReportFilters(searchParams));
+  const { shiftCompletionReportQuerySchema, toReportFilters } = await import(
+    "@/server/validation/reports"
+  );
+  const filters = shiftCompletionReportQuerySchema.parse(
+    toReportFilters(searchParams),
+  );
   const where = and(
     filters.dateFrom ? gte(shiftAssignments.workDate, filters.dateFrom) : undefined,
     filters.dateTo ? lte(shiftAssignments.workDate, filters.dateTo) : undefined,
@@ -171,7 +266,7 @@ export async function shiftCompletionReport(request: Request) {
     filters.inspectorId ? eq(shiftAssignments.userId, filters.inspectorId) : undefined,
     filters.status ? eq(shiftAssignments.assignmentStatus, filters.status as never) : undefined,
   );
-  const [items, total, taskRows] = await Promise.all([
+  const [items, total] = await Promise.all([
     db
       .select({
         assignment: shiftAssignments,
@@ -188,8 +283,19 @@ export async function shiftCompletionReport(request: Request) {
       .limit(pagination.limit)
       .offset(pagination.offset),
     db.select({ value: count() }).from(shiftAssignments).where(where),
-    db.select().from(tasks),
   ]);
+  const taskRows =
+    items.length === 0
+      ? []
+      : await db
+          .select()
+          .from(tasks)
+          .where(
+            inArray(
+              tasks.shiftAssignmentId,
+              items.map((item) => item.assignment.id),
+            ),
+          );
   const tasksByAssignment = new Map<string, typeof taskRows>();
   for (const task of taskRows) {
     if (!task.shiftAssignmentId) continue;
@@ -221,6 +327,7 @@ export async function taskCompletionReport(request: Request) {
   const { taskCompletionReportQuerySchema, toReportFilters } = await import("@/server/validation/reports");
   const filters = taskCompletionReportQuerySchema.parse(toReportFilters(searchParams));
   const where = and(
+    filters.shiftId ? eq(shiftAssignments.shiftId, filters.shiftId) : undefined,
     filters.areaId ? eq(tasks.areaId, filters.areaId) : undefined,
     filters.inspectorId ? eq(tasks.assignedUserId, filters.inspectorId) : undefined,
     filters.status ? eq(tasks.status, filters.status) : undefined,
@@ -236,14 +343,33 @@ export async function taskCompletionReport(request: Request) {
         inspector: { id: users.id, name: users.name, email: users.email },
       })
       .from(tasks)
+      .leftJoin(
+        shiftAssignments,
+        eq(shiftAssignments.id, tasks.shiftAssignmentId),
+      )
       .innerJoin(areas, eq(areas.id, tasks.areaId))
       .leftJoin(users, eq(users.id, tasks.assignedUserId))
       .where(where)
       .orderBy(desc(tasks.createdAt))
       .limit(pagination.limit)
       .offset(pagination.offset),
-    db.select({ value: count() }).from(tasks).where(where),
-    db.select().from(tasks).where(where),
+    db
+      .select({ value: count() })
+      .from(tasks)
+      .leftJoin(
+        shiftAssignments,
+        eq(shiftAssignments.id, tasks.shiftAssignmentId),
+      )
+      .where(where),
+    db
+      .select({ task: tasks })
+      .from(tasks)
+      .leftJoin(
+        shiftAssignments,
+        eq(shiftAssignments.id, tasks.shiftAssignmentId),
+      )
+      .where(where)
+      .then((rows) => rows.map((row) => row.task)),
   ]);
   const completed = allRows.filter((task) => taskCompleted(task.status)).length;
 
@@ -262,7 +388,13 @@ export async function taskCompletionReport(request: Request) {
 
 export async function sopComplianceReport(request: Request) {
   await requireReportsRead(request);
-  const { pagination } = parseReportRequest(request);
+  const { pagination, searchParams } = parseReportRequest(request);
+  const { sopComplianceReportQuerySchema, toReportFilters } = await import(
+    "@/server/validation/reports"
+  );
+  const filters = sopComplianceReportQuerySchema.parse(
+    toReportFilters(searchParams),
+  );
   const rows = await db
     .select({
       procedure: procedures,
@@ -270,32 +402,82 @@ export async function sopComplianceReport(request: Request) {
     })
     .from(procedureVersions)
     .innerJoin(procedures, eq(procedures.id, procedureVersions.procedureId))
-    .where(and(eq(procedures.status, "published"), isNull(procedures.archivedAt)))
+    .where(
+      and(
+        eq(procedures.status, "published"),
+        isNull(procedures.archivedAt),
+        filters.dateFrom
+          ? gte(procedureVersions.publishedAt, startOfDate(filters.dateFrom)!)
+          : undefined,
+        filters.dateTo
+          ? lte(procedureVersions.publishedAt, endOfDate(filters.dateTo)!)
+          : undefined,
+      ),
+    )
     .orderBy(desc(procedureVersions.publishedAt), desc(procedureVersions.createdAt));
-  const pageItems = rows.slice(pagination.offset, pagination.offset + pagination.limit);
+  let cohortUserIds: Set<string> | null = null;
+  if (filters.inspectorId) {
+    cohortUserIds = new Set([filters.inspectorId]);
+  } else if (filters.areaId || filters.shiftId) {
+    const cohort = await db
+      .select({ userId: shiftAssignments.userId })
+      .from(shiftAssignments)
+      .where(
+        and(
+          filters.areaId
+            ? eq(shiftAssignments.areaId, filters.areaId)
+            : undefined,
+          filters.shiftId
+            ? eq(shiftAssignments.shiftId, filters.shiftId)
+            : undefined,
+          filters.dateFrom
+            ? gte(shiftAssignments.workDate, filters.dateFrom)
+            : undefined,
+          filters.dateTo
+            ? lte(shiftAssignments.workDate, filters.dateTo)
+            : undefined,
+          ne(shiftAssignments.assignmentStatus, "cancelled"),
+        ),
+      );
+    cohortUserIds = new Set(cohort.map((row) => row.userId));
+  }
   const items = [];
 
-  for (const item of pageItems) {
-    const recipientIds = await resolveProcedureRecipients(item.version.id);
+  for (const item of rows) {
+    const resolvedRecipientIds = await resolveProcedureRecipients(item.version.id);
+    const recipientIds = cohortUserIds
+      ? resolvedRecipientIds.filter((userId) => cohortUserIds.has(userId))
+      : resolvedRecipientIds;
+    if (cohortUserIds && recipientIds.length === 0) continue;
     const acknowledgements = await db
       .select()
       .from(procedureAcknowledgements)
       .where(eq(procedureAcknowledgements.procedureVersionId, item.version.id));
-    const understood = acknowledgements.filter((ack) => Boolean(ack.understoodAt)).length;
+    const acknowledgedUserIds = new Set(
+      acknowledgements
+        .filter((ack) => Boolean(ack.understoodAt))
+        .map((ack) => ack.userId),
+    );
+    const understood = recipientIds.filter((id) =>
+      acknowledgedUserIds.has(id),
+    ).length;
+    const metrics = {
+      targetCount: recipientIds.length,
+      acknowledgedCount: understood,
+      pendingCount: Math.max(recipientIds.length - understood, 0),
+      complianceRate: completionRate(understood, recipientIds.length),
+    };
+    if (filters.status === "acknowledged" && metrics.pendingCount > 0) continue;
+    if (filters.status === "pending" && metrics.pendingCount === 0) continue;
     items.push({
       ...item,
-      metrics: {
-        targetCount: recipientIds.length,
-        acknowledgedCount: understood,
-        pendingCount: Math.max(recipientIds.length - understood, 0),
-        complianceRate: completionRate(understood, recipientIds.length),
-      },
+      metrics,
     });
   }
 
   return {
-    items,
-    meta: paginationMeta(pagination.page, pagination.limit, rows.length),
+    items: items.slice(pagination.offset, pagination.offset + pagination.limit),
+    meta: paginationMeta(pagination.page, pagination.limit, items.length),
   };
 }
 
@@ -357,6 +539,7 @@ export async function issuesReport(request: Request) {
   const { issueReportQuerySchema, toReportFilters } = await import("@/server/validation/reports");
   const filters = issueReportQuerySchema.parse(toReportFilters(searchParams));
   const where = and(
+    filters.shiftId ? eq(shiftAssignments.shiftId, filters.shiftId) : undefined,
     filters.areaId ? eq(issueReports.areaId, filters.areaId) : undefined,
     filters.inspectorId ? eq(issueReports.reportedBy, filters.inspectorId) : undefined,
     filters.status ? eq(issueReports.status, filters.status) : undefined,
@@ -372,14 +555,33 @@ export async function issuesReport(request: Request) {
         reporter: { id: users.id, name: users.name, email: users.email },
       })
       .from(issueReports)
+      .leftJoin(
+        shiftAssignments,
+        eq(shiftAssignments.id, issueReports.shiftAssignmentId),
+      )
       .leftJoin(areas, eq(areas.id, issueReports.areaId))
       .leftJoin(users, eq(users.id, issueReports.reportedBy))
       .where(where)
       .orderBy(desc(issueReports.createdAt))
       .limit(pagination.limit)
       .offset(pagination.offset),
-    db.select({ value: count() }).from(issueReports).where(where),
-    db.select().from(issueReports).where(where),
+    db
+      .select({ value: count() })
+      .from(issueReports)
+      .leftJoin(
+        shiftAssignments,
+        eq(shiftAssignments.id, issueReports.shiftAssignmentId),
+      )
+      .where(where),
+    db
+      .select({ issue: issueReports })
+      .from(issueReports)
+      .leftJoin(
+        shiftAssignments,
+        eq(shiftAssignments.id, issueReports.shiftAssignmentId),
+      )
+      .where(where)
+      .then((rows) => rows.map((row) => row.issue)),
   ]);
   const trend = countBy(
     allRows.map((issue) => issue.createdAt.toISOString().slice(0, 10)),
@@ -400,6 +602,24 @@ export async function issuesReport(request: Request) {
 function flattenRows(value: unknown): Record<string, unknown>[] {
   const items = (value as { items?: unknown[] }).items ?? [];
   return items.map((item) => JSON.parse(JSON.stringify(item)) as Record<string, unknown>);
+}
+
+function reportMeta(value: unknown) {
+  return (value as {
+    meta?: { total?: number; totalPages?: number; page?: number; limit?: number };
+  }).meta;
+}
+
+async function resolveReportData(reportType: string, request: Request) {
+  return reportType === "shift-completion"
+    ? shiftCompletionReport(request)
+    : reportType === "task-completion"
+      ? taskCompletionReport(request)
+      : reportType === "sop-compliance"
+        ? sopComplianceReport(request)
+        : reportType === "skill-gap"
+          ? skillGapReport(request)
+          : issuesReport(request);
 }
 
 function csvEscape(value: unknown) {
@@ -425,21 +645,63 @@ export async function exportReport(request: Request) {
   for (const [key, value] of Object.entries(input.filters)) {
     if (value !== undefined) params.set(key, String(value));
   }
-  const reportRequest = new Request(`http://qims.local/api/reports/${input.reportType}?${params.toString()}`, {
-    headers: request.headers,
-  });
-  const data =
-    input.reportType === "shift-completion"
-      ? await shiftCompletionReport(reportRequest)
-      : input.reportType === "task-completion"
-        ? await taskCompletionReport(reportRequest)
-        : input.reportType === "sop-compliance"
-          ? await sopComplianceReport(reportRequest)
-          : input.reportType === "skill-gap"
-            ? await skillGapReport(reportRequest)
-            : await issuesReport(reportRequest);
-  const rows = flattenRows(data);
-  const payload = input.format === "csv" ? toCsv(rows) : JSON.stringify(data, null, 2);
+  const asyncExport = request.headers.get("x-qims-async-export") === "true";
+  const buildReportRequest = (page: number) => {
+    params.set("page", String(page));
+    return new Request(
+      `http://qims.local/api/reports/${input.reportType}?${params.toString()}`,
+      { headers: request.headers },
+    );
+  };
+  const firstPage = await resolveReportData(
+    input.reportType,
+    buildReportRequest(1),
+  );
+  const firstMeta = reportMeta(firstPage);
+  const total = firstMeta?.total ?? flattenRows(firstPage).length;
+  if (!asyncExport && total > 100) {
+    throw new HttpError(
+      409,
+      "CONFLICT",
+      "Direct export dibatasi 100 baris. Gunakan async export job.",
+      { total, directExportLimit: 100 },
+    );
+  }
+  if (asyncExport && total > 5000) {
+    throw new HttpError(
+      409,
+      "CONFLICT",
+      "Local async export dibatasi 5000 baris. Gunakan production worker.",
+      { total, localAsyncExportLimit: 5000 },
+    );
+  }
+
+  const rows = flattenRows(firstPage);
+  const totalPages = firstMeta?.totalPages ?? 1;
+  if (asyncExport) {
+    for (let page = 2; page <= totalPages; page += 1) {
+      const pageData = await resolveReportData(
+        input.reportType,
+        buildReportRequest(page),
+      );
+      rows.push(...flattenRows(pageData));
+    }
+  }
+  const jsonData =
+    asyncExport && totalPages > 1
+      ? {
+          ...(firstPage as Record<string, unknown>),
+          items: rows,
+          meta: {
+            page: 1,
+            limit: rows.length,
+            total,
+            totalPages: 1,
+          },
+        }
+      : firstPage;
+  const payload =
+    input.format === "csv" ? toCsv(rows) : JSON.stringify(jsonData, null, 2);
 
   await writeAuditLog({
     actorId: actor.id,

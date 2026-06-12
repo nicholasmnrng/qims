@@ -200,3 +200,13 @@ Tahap 10.2 memperketat write path Supervisor:
 - Handover next-shift access memeriksa area, target shift, tanggal sumber assignment, dan submitter.
 - Offline sync memvalidasi payload per draft type, idempotent berdasarkan `localDraftId`, menyimpan entity reference, serta menangani stale conflict.
 - Realtime polling membatasi channel terhadap session user, role, dan area assignment; arbitrary user channel tidak dapat dibaca.
+
+## Reporting Query and Export Hardening
+
+- Report date range divalidasi dan query memakai server-side filters.
+- Task/issue shift filters memakai assignment relation.
+- Shift completion tidak lagi memuat seluruh task table untuk menghitung satu page.
+- SOP compliance dapat membatasi cohort area/shift/inspector dan acknowledgement status.
+- Direct export menolak hasil di atas 100 baris agar tidak terjadi silent truncation.
+- Local async export melakukan page collection hingga 5000 baris dan menjaga permission serta ownership job.
+- Error async job yang tersimpan tidak membocorkan error internal.
