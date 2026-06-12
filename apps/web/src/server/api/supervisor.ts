@@ -7,8 +7,12 @@ import {
   desc,
   eq,
   getTableColumns,
+  gte,
   ilike,
   inArray,
+  isNotNull,
+  isNull,
+  lte,
   max,
   ne,
   or,
@@ -16,7 +20,12 @@ import {
 
 import { writeAuditLog } from "@/server/audit/log";
 import { requireSessionPermission } from "@/server/auth/session";
-import { userChannel } from "@/server/contracts/realtime";
+import {
+  areaChannel,
+  roleChannel,
+  userChannel,
+  type RealtimeEventType,
+} from "@/server/contracts/realtime";
 import { db } from "@/server/db";
 import {
   areas,
@@ -42,7 +51,10 @@ import {
 } from "@/server/db/schema";
 import { HttpError } from "./http-error";
 import { paginationMeta, parsePagination } from "./pagination";
-import { publishRealtimeEvent } from "@/server/runtime/realtime-events";
+import {
+  publishRealtimeEvent,
+  publishRealtimeEventToChannels,
+} from "@/server/runtime/realtime-events";
 import { actorAuditFields, toAuditValue } from "./super-admin";
 
 export async function requireOperationalPermission(
@@ -60,6 +72,7 @@ export async function requireOperationalPermission(
 }
 
 export type OperationalActor = Awaited<ReturnType<typeof requireOperationalPermission>>;
+type OperationalDatabase = Pick<typeof db, "insert" | "select" | "update">;
 
 export const skillRank: Record<SkillLevel, number> = {
   not_trained: 0,
@@ -276,6 +289,30 @@ export async function notifyActiveSupervisors(input: {
   });
 }
 
+export async function publishOperationalRealtime(input: {
+  type: RealtimeEventType;
+  actorId: string;
+  payload: Record<string, unknown>;
+  userIds?: Array<string | null | undefined>;
+  areaIds?: Array<string | null | undefined>;
+  roles?: string[];
+}) {
+  return publishRealtimeEventToChannels({
+    type: input.type,
+    actorId: input.actorId,
+    payload: input.payload,
+    channels: [
+      ...(input.userIds ?? [])
+        .filter((value): value is string => Boolean(value))
+        .map(userChannel),
+      ...(input.areaIds ?? [])
+        .filter((value): value is string => Boolean(value))
+        .map(areaChannel),
+      ...(input.roles ?? []).map(roleChannel),
+    ],
+  });
+}
+
 export async function writeTaskEvent(input: {
   taskId: string;
   eventType: string;
@@ -283,8 +320,8 @@ export async function writeTaskEvent(input: {
   newValue?: Record<string, unknown> | null;
   reason?: string | null;
   actorId: string;
-}) {
-  await db.insert(taskEvents).values({
+}, database: OperationalDatabase = db) {
+  await database.insert(taskEvents).values({
     id: randomUUID(),
     taskId: input.taskId,
     eventType: input.eventType,
@@ -302,8 +339,8 @@ export async function writeIssueEvent(input: {
   newValue?: Record<string, unknown> | null;
   note?: string | null;
   actorId: string;
-}) {
-  await db.insert(issueEvents).values({
+}, database: OperationalDatabase = db) {
+  await database.insert(issueEvents).values({
     id: randomUUID(),
     issueId: input.issueId,
     eventType: input.eventType,
@@ -364,8 +401,8 @@ export async function createSopTargets(input: {
     targetType: (typeof procedureVersionTargets.$inferInsert)["targetType"];
     targetId?: string | null;
   }>;
-}) {
-  await db.insert(procedureVersionTargets).values(
+}, database: OperationalDatabase = db) {
+  await database.insert(procedureVersionTargets).values(
     input.targets.map((target) => ({
       id: randomUUID(),
       procedureVersionId: input.procedureVersionId,
@@ -384,7 +421,7 @@ export async function auditOperationalWrite(input: {
   afterValue?: unknown;
   reason: string;
   request: Request;
-}) {
+}, database: OperationalDatabase = db) {
   await writeAuditLog({
     ...actorAuditFields(input.actor),
     action: input.action,
@@ -394,7 +431,7 @@ export async function auditOperationalWrite(input: {
     afterValue: toAuditValue(input.afterValue),
     reason: input.reason,
     request: input.request,
-  });
+  }, database);
 }
 
 export function taskClosedAt(status: TaskStatus) {
@@ -416,23 +453,29 @@ function operationalFilterParams(request: Request) {
       shiftId: url.searchParams.get("shiftId") ?? undefined,
       userId: url.searchParams.get("userId") ?? undefined,
       workDate: url.searchParams.get("workDate") ?? undefined,
+      dateFrom: url.searchParams.get("dateFrom") ?? undefined,
+      dateTo: url.searchParams.get("dateTo") ?? undefined,
       status: url.searchParams.get("status") ?? undefined,
+      skillLevel: url.searchParams.get("skillLevel") ?? undefined,
     },
   };
 }
 
 export async function listShiftAssignments(request: Request) {
-  const { listByOperationalFiltersSchema } = await import(
+  const { listShiftAssignmentsQuerySchema } = await import(
     "@/server/validation/supervisor"
   );
   const { pagination, filters } = operationalFilterParams(request);
-  const query = listByOperationalFiltersSchema.parse(filters);
+  const query = listShiftAssignmentsQuerySchema.parse(filters);
   const where = and(
     query.areaId ? eq(shiftAssignments.areaId, query.areaId) : undefined,
     query.shiftId ? eq(shiftAssignments.shiftId, query.shiftId) : undefined,
     query.userId ? eq(shiftAssignments.userId, query.userId) : undefined,
     query.workDate ? eq(shiftAssignments.workDate, query.workDate) : undefined,
-    query.status ? eq(shiftAssignments.assignmentStatus, query.status as never) : undefined,
+    query.dateFrom ? gte(shiftAssignments.workDate, query.dateFrom) : undefined,
+    query.dateTo ? lte(shiftAssignments.workDate, query.dateTo) : undefined,
+    query.status ? eq(shiftAssignments.assignmentStatus, query.status) : undefined,
+    query.skillLevel ? eq(skillMatrix.skillLevel, query.skillLevel) : undefined,
   );
 
   const [items, total] = await Promise.all([
@@ -457,16 +500,37 @@ export async function listShiftAssignments(request: Request) {
           startTime: shifts.startTime,
           endTime: shifts.endTime,
         },
+        skill: {
+          level: skillMatrix.skillLevel,
+          validUntil: skillMatrix.validUntil,
+        },
       })
       .from(shiftAssignments)
       .innerJoin(users, eq(users.id, shiftAssignments.userId))
       .innerJoin(areas, eq(areas.id, shiftAssignments.areaId))
       .innerJoin(shifts, eq(shifts.id, shiftAssignments.shiftId))
+      .leftJoin(
+        skillMatrix,
+        and(
+          eq(skillMatrix.userId, shiftAssignments.userId),
+          eq(skillMatrix.areaId, shiftAssignments.areaId),
+        ),
+      )
       .where(where)
       .orderBy(desc(shiftAssignments.workDate), asc(shifts.startTime), asc(areas.name))
       .limit(pagination.limit)
       .offset(pagination.offset),
-    db.select({ value: count() }).from(shiftAssignments).where(where),
+    db
+      .select({ value: count() })
+      .from(shiftAssignments)
+      .leftJoin(
+        skillMatrix,
+        and(
+          eq(skillMatrix.userId, shiftAssignments.userId),
+          eq(skillMatrix.areaId, shiftAssignments.areaId),
+        ),
+      )
+      .where(where),
   ]);
 
   return {
@@ -698,10 +762,18 @@ export async function listHandovers(request: Request) {
   const query = listHandoversQuerySchema.parse({
     areaId: url.searchParams.get("areaId") ?? undefined,
     status: url.searchParams.get("status") ?? undefined,
+    dateFrom: url.searchParams.get("dateFrom") ?? undefined,
+    dateTo: url.searchParams.get("dateTo") ?? undefined,
   });
   const where = and(
     query.areaId ? eq(handovers.areaId, query.areaId) : undefined,
     query.status ? eq(handovers.status, query.status) : undefined,
+    query.dateFrom
+      ? gte(handovers.createdAt, new Date(`${query.dateFrom}T00:00:00.000Z`))
+      : undefined,
+    query.dateTo
+      ? lte(handovers.createdAt, new Date(`${query.dateTo}T23:59:59.999Z`))
+      : undefined,
   );
 
   const [items, total] = await Promise.all([
@@ -750,13 +822,25 @@ export async function listIssues(request: Request) {
   const { listIssuesQuerySchema } = await import("@/server/validation/supervisor");
   const query = listIssuesQuerySchema.parse({
     areaId: url.searchParams.get("areaId") ?? undefined,
+    shiftAssignmentId: url.searchParams.get("shiftAssignmentId") ?? undefined,
     severity: url.searchParams.get("severity") ?? undefined,
     status: url.searchParams.get("status") ?? undefined,
+    dateFrom: url.searchParams.get("dateFrom") ?? undefined,
+    dateTo: url.searchParams.get("dateTo") ?? undefined,
   });
   const where = and(
     query.areaId ? eq(issueReports.areaId, query.areaId) : undefined,
+    query.shiftAssignmentId
+      ? eq(issueReports.shiftAssignmentId, query.shiftAssignmentId)
+      : undefined,
     query.severity ? eq(issueReports.severity, query.severity) : undefined,
     query.status ? eq(issueReports.status, query.status) : undefined,
+    query.dateFrom
+      ? gte(issueReports.createdAt, new Date(`${query.dateFrom}T00:00:00.000Z`))
+      : undefined,
+    query.dateTo
+      ? lte(issueReports.createdAt, new Date(`${query.dateTo}T23:59:59.999Z`))
+      : undefined,
   );
 
   const [items, total] = await Promise.all([
@@ -796,14 +880,68 @@ export async function getIssueDetail(id: string) {
 export async function listNotificationRecords(request: Request) {
   const url = new URL(request.url);
   const pagination = parsePagination(url.searchParams);
-  const type = url.searchParams.get("type");
-  const priority = url.searchParams.get("priority");
+  const { listNotificationRecordsQuerySchema } = await import(
+    "@/server/validation/supervisor"
+  );
+  const query = listNotificationRecordsQuerySchema.parse({
+    type: url.searchParams.get("type") ?? undefined,
+    priority: url.searchParams.get("priority") ?? undefined,
+    recipientUserId: url.searchParams.get("recipientUserId") ?? undefined,
+    deliveryStatus: url.searchParams.get("deliveryStatus") ?? undefined,
+    readStatus: url.searchParams.get("readStatus") ?? undefined,
+    acknowledgementStatus:
+      url.searchParams.get("acknowledgementStatus") ?? undefined,
+  });
+  const hasRecipientFilter = Boolean(
+    query.recipientUserId ||
+      query.deliveryStatus ||
+      query.readStatus ||
+      query.acknowledgementStatus,
+  );
+  let matchingNotificationIds: string[] | undefined;
+  if (hasRecipientFilter) {
+    const matches = await db
+      .select({ notificationId: notificationRecipients.notificationId })
+      .from(notificationRecipients)
+      .where(
+        and(
+          query.recipientUserId
+            ? eq(notificationRecipients.userId, query.recipientUserId)
+            : undefined,
+          query.deliveryStatus
+            ? eq(notificationRecipients.deliveryStatus, query.deliveryStatus)
+            : undefined,
+          query.readStatus === "read"
+            ? isNotNull(notificationRecipients.readAt)
+            : query.readStatus === "unread"
+              ? isNull(notificationRecipients.readAt)
+              : undefined,
+          query.acknowledgementStatus === "acknowledged"
+            ? isNotNull(notificationRecipients.acknowledgedAt)
+            : query.acknowledgementStatus === "pending"
+              ? isNull(notificationRecipients.acknowledgedAt)
+              : undefined,
+        ),
+      );
+    matchingNotificationIds = [
+      ...new Set(matches.map((match) => match.notificationId)),
+    ];
+    if (matchingNotificationIds.length === 0) {
+      return {
+        items: [],
+        meta: paginationMeta(pagination.page, pagination.limit, 0),
+      };
+    }
+  }
   const where = and(
-    type ? eq(notifications.type, type as never) : undefined,
-    priority ? eq(notifications.priority, priority as never) : undefined,
+    query.type ? eq(notifications.type, query.type) : undefined,
+    query.priority ? eq(notifications.priority, query.priority) : undefined,
+    matchingNotificationIds
+      ? inArray(notifications.id, matchingNotificationIds)
+      : undefined,
   );
 
-  const [items, total] = await Promise.all([
+  const [notificationRows, total] = await Promise.all([
     db
       .select()
       .from(notifications)
@@ -813,6 +951,57 @@ export async function listNotificationRecords(request: Request) {
       .offset(pagination.offset),
     db.select({ value: count() }).from(notifications).where(where),
   ]);
+  const recipientRows =
+    notificationRows.length === 0
+      ? []
+      : await db
+          .select({
+            recipient: getTableColumns(notificationRecipients),
+            user: {
+              id: users.id,
+              name: users.name,
+              email: users.email,
+            },
+          })
+          .from(notificationRecipients)
+          .innerJoin(users, eq(users.id, notificationRecipients.userId))
+          .where(
+            inArray(
+              notificationRecipients.notificationId,
+              notificationRows.map((notification) => notification.id),
+            ),
+          )
+          .orderBy(asc(users.name));
+  const recipientsByNotification = new Map<
+    string,
+    typeof recipientRows
+  >();
+  for (const row of recipientRows) {
+    const current =
+      recipientsByNotification.get(row.recipient.notificationId) ?? [];
+    current.push(row);
+    recipientsByNotification.set(row.recipient.notificationId, current);
+  }
+  const items = notificationRows.map((notification) => {
+    const recipients = recipientsByNotification.get(notification.id) ?? [];
+    return {
+      notification,
+      recipients,
+      summary: {
+        total: recipients.length,
+        delivered: recipients.filter(
+          (row) => row.recipient.deliveryStatus === "delivered",
+        ).length,
+        failed: recipients.filter(
+          (row) => row.recipient.deliveryStatus === "failed",
+        ).length,
+        read: recipients.filter((row) => row.recipient.readAt).length,
+        acknowledged: recipients.filter(
+          (row) => row.recipient.acknowledgedAt,
+        ).length,
+      },
+    };
+  });
 
   return {
     items,

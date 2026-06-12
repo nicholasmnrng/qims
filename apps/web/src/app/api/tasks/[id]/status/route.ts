@@ -5,6 +5,7 @@ import { ok } from "@/server/api/response";
 import {
   auditOperationalWrite,
   getTaskOrThrow,
+  publishOperationalRealtime,
   requireOperationalPermission,
   taskClosedAt,
   writeTaskEvent,
@@ -71,35 +72,48 @@ export async function PATCH(request: Request, context: RouteContext) {
     const actor = await requireOperationalPermission(request, "tasks:manage");
     const before = await getTaskOrThrow(id);
     const input = updateTaskStatusSchema.parse(await request.json());
-    const [task] = await db
-      .update(tasks)
-      .set({
-        status: input.status,
-        updatedBy: actor.id,
-        updatedAt: new Date(),
-        closedAt: taskClosedAt(input.status),
-      })
-      .where(eq(tasks.id, id))
-      .returning();
+    const task = await db.transaction(async (tx) => {
+      const [updated] = await tx
+        .update(tasks)
+        .set({
+          status: input.status,
+          updatedBy: actor.id,
+          updatedAt: new Date(),
+          closedAt: taskClosedAt(input.status),
+        })
+        .where(eq(tasks.id, id))
+        .returning();
 
-    await writeTaskEvent({
-      taskId: id,
-      eventType: "task.status_change",
-      oldValue: { status: before.status },
-      newValue: { status: task.status },
-      reason: input.reason,
-      actorId: actor.id,
+      await writeTaskEvent({
+        taskId: id,
+        eventType: "task.status_change",
+        oldValue: { status: before.status },
+        newValue: { status: updated.status },
+        reason: input.reason,
+        actorId: actor.id,
+      }, tx);
+
+      await auditOperationalWrite({
+        actor,
+        action: "tasks.status_update",
+        entityType: "tasks",
+        entityId: id,
+        beforeValue: before,
+        afterValue: updated,
+        reason: input.reason,
+        request,
+      }, tx);
+
+      return updated;
     });
 
-    await auditOperationalWrite({
-      actor,
-      action: "tasks.status_update",
-      entityType: "tasks",
-      entityId: id,
-      beforeValue: before,
-      afterValue: task,
-      reason: input.reason,
-      request,
+    await publishOperationalRealtime({
+      type: "task.status_changed",
+      actorId: actor.id,
+      userIds: [task.assignedUserId],
+      areaIds: [task.areaId],
+      roles: ["supervisor"],
+      payload: { taskId: task.id, status: task.status },
     });
 
     return ok(task);

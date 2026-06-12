@@ -6,6 +6,7 @@ import {
   auditOperationalWrite,
   createNotification,
   getIssueOrThrow,
+  publishOperationalRealtime,
   requireOperationalPermission,
   writeIssueEvent,
 } from "@/server/api/supervisor";
@@ -23,24 +24,41 @@ export async function PATCH(request: Request, context: RouteContext) {
     const { id } = await context.params;
     const before = await getIssueOrThrow(id);
     const input = updateIssueStatusSchema.parse(await request.json());
-    const [issue] = await db
-      .update(issueReports)
-      .set({
-        status: input.status,
-        updatedAt: new Date(),
-        closedAt:
-          input.status === "closed" || input.status === "rejected" ? new Date() : null,
-      })
-      .where(eq(issueReports.id, id))
-      .returning();
+    const issue = await db.transaction(async (tx) => {
+      const [updated] = await tx
+        .update(issueReports)
+        .set({
+          status: input.status,
+          updatedAt: new Date(),
+          closedAt:
+            input.status === "closed" || input.status === "rejected"
+              ? new Date()
+              : null,
+        })
+        .where(eq(issueReports.id, id))
+        .returning();
 
-    await writeIssueEvent({
-      issueId: id,
-      eventType: "issue.status_update",
-      oldValue: { status: before.status },
-      newValue: { status: issue.status },
-      note: input.note,
-      actorId: actor.id,
+      await writeIssueEvent({
+        issueId: id,
+        eventType: "issue.status_update",
+        oldValue: { status: before.status },
+        newValue: { status: updated.status },
+        note: input.note,
+        actorId: actor.id,
+      }, tx);
+
+      await auditOperationalWrite({
+        actor,
+        action: "issues.status_update",
+        entityType: "issue_reports",
+        entityId: id,
+        beforeValue: before,
+        afterValue: updated,
+        reason: input.reason,
+        request,
+      }, tx);
+
+      return updated;
     });
 
     const recipients = [issue.reportedBy, issue.assignedTo].filter(
@@ -62,15 +80,13 @@ export async function PATCH(request: Request, context: RouteContext) {
       });
     }
 
-    await auditOperationalWrite({
-      actor,
-      action: "issues.status_update",
-      entityType: "issue_reports",
-      entityId: id,
-      beforeValue: before,
-      afterValue: issue,
-      reason: input.reason,
-      request,
+    await publishOperationalRealtime({
+      type: "issue.status_changed",
+      actorId: actor.id,
+      userIds: recipients,
+      areaIds: [issue.areaId],
+      roles: ["supervisor"],
+      payload: { issueId: issue.id, status: issue.status },
     });
 
     return ok(issue);

@@ -6,6 +6,7 @@ import {
   auditOperationalWrite,
   getAssignmentConflicts,
   getShiftAssignmentOrThrow,
+  publishOperationalRealtime,
   requireOperationalPermission,
 } from "@/server/api/supervisor";
 import { db } from "@/server/db";
@@ -42,29 +43,46 @@ export async function PATCH(request: Request, context: RouteContext) {
       excludeAssignmentId: id,
     });
 
-    const [assignment] = await db
-      .update(shiftAssignments)
-      .set({
-        userId: input.userId,
-        shiftId: input.shiftId,
-        areaId: input.areaId,
-        workDate: input.workDate,
-        assignmentStatus: input.assignmentStatus,
-        changeReason: input.changeReason,
-        updatedAt: new Date(),
-      })
-      .where(eq(shiftAssignments.id, id))
-      .returning();
+    const assignment = await db.transaction(async (tx) => {
+      const [updated] = await tx
+        .update(shiftAssignments)
+        .set({
+          userId: input.userId,
+          shiftId: input.shiftId,
+          areaId: input.areaId,
+          workDate: input.workDate,
+          assignmentStatus: input.assignmentStatus,
+          changeReason: input.changeReason,
+          updatedAt: new Date(),
+        })
+        .where(eq(shiftAssignments.id, id))
+        .returning();
 
-    await auditOperationalWrite({
-      actor,
-      action: "shift_assignments.update",
-      entityType: "shift_assignments",
-      entityId: id,
-      beforeValue: before,
-      afterValue: assignment,
-      reason: input.changeReason,
-      request,
+      await auditOperationalWrite({
+        actor,
+        action: "shift_assignments.update",
+        entityType: "shift_assignments",
+        entityId: id,
+        beforeValue: before,
+        afterValue: updated,
+        reason: input.changeReason,
+        request,
+      }, tx);
+
+      return updated;
+    });
+    await publishOperationalRealtime({
+      type: "schedule.updated",
+      actorId: actor.id,
+      userIds: [before.userId, assignment.userId],
+      areaIds: [before.areaId, assignment.areaId],
+      roles: ["supervisor"],
+      payload: {
+        assignmentId: assignment.id,
+        workDate: assignment.workDate,
+        shiftId: assignment.shiftId,
+        status: assignment.assignmentStatus,
+      },
     });
 
     return ok({ assignment, conflicts });

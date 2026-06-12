@@ -6,6 +6,7 @@ import {
   auditOperationalWrite,
   getAssignmentConflicts,
   listShiftAssignments,
+  publishOperationalRealtime,
   requireOperationalPermission,
 } from "@/server/api/supervisor";
 import { db } from "@/server/db";
@@ -28,27 +29,44 @@ export async function POST(request: Request) {
     const conflicts = await getAssignmentConflicts(input);
     const id = randomUUID();
 
-    const [assignment] = await db
-      .insert(shiftAssignments)
-      .values({
-        id,
-        userId: input.userId,
-        shiftId: input.shiftId,
-        areaId: input.areaId,
-        workDate: input.workDate,
-        assignmentStatus: input.assignmentStatus,
-        changeReason: input.changeReason,
-      })
-      .returning();
+    const assignment = await db.transaction(async (tx) => {
+      const [created] = await tx
+        .insert(shiftAssignments)
+        .values({
+          id,
+          userId: input.userId,
+          shiftId: input.shiftId,
+          areaId: input.areaId,
+          workDate: input.workDate,
+          assignmentStatus: input.assignmentStatus,
+          changeReason: input.changeReason,
+        })
+        .returning();
 
-    await auditOperationalWrite({
-      actor,
-      action: "shift_assignments.create",
-      entityType: "shift_assignments",
-      entityId: id,
-      afterValue: assignment,
-      reason: input.changeReason,
-      request,
+      await auditOperationalWrite({
+        actor,
+        action: "shift_assignments.create",
+        entityType: "shift_assignments",
+        entityId: id,
+        afterValue: created,
+        reason: input.changeReason,
+        request,
+      }, tx);
+
+      return created;
+    });
+    await publishOperationalRealtime({
+      type: "schedule.updated",
+      actorId: actor.id,
+      userIds: [assignment.userId],
+      areaIds: [assignment.areaId],
+      roles: ["supervisor"],
+      payload: {
+        assignmentId: assignment.id,
+        workDate: assignment.workDate,
+        shiftId: assignment.shiftId,
+        status: assignment.assignmentStatus,
+      },
     });
 
     return ok({ assignment, conflicts }, { status: 201 });

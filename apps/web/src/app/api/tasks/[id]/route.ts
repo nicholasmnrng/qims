@@ -4,8 +4,11 @@ import { handleApiError } from "@/server/api/errors";
 import { ok } from "@/server/api/response";
 import {
   auditOperationalWrite,
+  createNotification,
   getTaskDetail,
   getTaskOrThrow,
+  notificationPriorityForTask,
+  publishOperationalRealtime,
   requireOperationalPermission,
   taskClosedAt,
   writeTaskEvent,
@@ -49,45 +52,94 @@ export async function PATCH(request: Request, context: RouteContext) {
         : input.dueAt
           ? new Date(input.dueAt)
           : null;
-    const [task] = await db
-      .update(tasks)
-      .set({
-        title: input.title,
-        description: input.description,
-        areaId: input.areaId,
-        assignedUserId: input.assignedUserId,
-        shiftAssignmentId: input.shiftAssignmentId,
-        priority: input.priority,
-        status: input.status,
-        dueAt,
-        attachmentUrl: input.attachmentUrl,
-        checklist: input.checklist,
-        updatedBy: actor.id,
-        updatedAt: new Date(),
-        closedAt: input.status ? taskClosedAt(input.status) : before.closedAt,
-      })
-      .where(eq(tasks.id, id))
-      .returning();
+    const task = await db.transaction(async (tx) => {
+      const [updated] = await tx
+        .update(tasks)
+        .set({
+          title: input.title,
+          description: input.description,
+          areaId: input.areaId,
+          assignedUserId: input.assignedUserId,
+          shiftAssignmentId: input.shiftAssignmentId,
+          priority: input.priority,
+          status: input.status,
+          dueAt,
+          attachmentUrl: input.attachmentUrl,
+          checklist: input.checklist,
+          updatedBy: actor.id,
+          updatedAt: new Date(),
+          closedAt: input.status ? taskClosedAt(input.status) : before.closedAt,
+        })
+        .where(eq(tasks.id, id))
+        .returning();
 
-    await writeTaskEvent({
-      taskId: id,
-      eventType: "task.update",
-      oldValue: before,
-      newValue: task,
-      reason: input.reason,
-      actorId: actor.id,
+      await writeTaskEvent({
+        taskId: id,
+        eventType: "task.update",
+        oldValue: before,
+        newValue: updated,
+        reason: input.reason,
+        actorId: actor.id,
+      }, tx);
+
+      await auditOperationalWrite({
+        actor,
+        action: "tasks.update",
+        entityType: "tasks",
+        entityId: id,
+        beforeValue: before,
+        afterValue: updated,
+        reason: input.reason,
+        request,
+      }, tx);
+
+      return updated;
     });
 
-    await auditOperationalWrite({
-      actor,
-      action: "tasks.update",
-      entityType: "tasks",
-      entityId: id,
-      beforeValue: before,
-      afterValue: task,
-      reason: input.reason,
-      request,
-    });
+    const assignedUserId = task.assignedUserId;
+    const assignmentChanged =
+      assignedUserId !== null && assignedUserId !== before.assignedUserId;
+    const priorityChanged = task.priority !== before.priority;
+    if ((assignmentChanged || priorityChanged) && assignedUserId) {
+      await createNotification({
+        title: priorityChanged ? "Prioritas task berubah" : "Assignment task berubah",
+        message: priorityChanged
+          ? `${task.title} sekarang ${task.priority}.`
+          : task.title,
+        type: priorityChanged ? "priority_change" : "assignment_change",
+        priority: notificationPriorityForTask(task.priority),
+        entityType: "tasks",
+        entityId: id,
+        createdBy: actor.id,
+        recipientIds: [assignedUserId],
+      });
+    }
+
+    if (priorityChanged) {
+      await publishOperationalRealtime({
+        type: "task.priority_changed",
+        actorId: actor.id,
+        userIds: [before.assignedUserId, task.assignedUserId],
+        areaIds: [before.areaId, task.areaId],
+        roles: ["supervisor"],
+        payload: {
+          taskId: task.id,
+          priority: task.priority,
+          assignedUserId: task.assignedUserId,
+        },
+      });
+    }
+
+    if (task.status !== before.status) {
+      await publishOperationalRealtime({
+        type: "task.status_changed",
+        actorId: actor.id,
+        userIds: [before.assignedUserId, task.assignedUserId],
+        areaIds: [before.areaId, task.areaId],
+        roles: ["supervisor"],
+        payload: { taskId: task.id, status: task.status },
+      });
+    }
 
     return ok(task);
   } catch (error) {

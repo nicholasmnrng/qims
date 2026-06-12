@@ -7,6 +7,7 @@ import {
   createNotification,
   listTasks,
   notificationPriorityForTask,
+  publishOperationalRealtime,
   requireOperationalPermission,
   writeTaskEvent,
 } from "@/server/api/supervisor";
@@ -37,31 +38,45 @@ export async function POST(request: Request) {
     const actor = await requireOperationalPermission(request, "tasks:manage");
     const input = createTaskSchema.parse(await request.json());
     const id = randomUUID();
-    const [task] = await db
-      .insert(tasks)
-      .values({
-        id,
-        title: input.title,
-        description: input.description ?? null,
-        areaId: input.areaId,
-        assignedUserId: input.assignedUserId ?? null,
-        shiftAssignmentId: input.shiftAssignmentId ?? null,
-        priority: input.priority,
-        status: input.status,
-        dueAt: input.dueAt ? new Date(input.dueAt) : null,
-        attachmentUrl: input.attachmentUrl ?? null,
-        checklist: input.checklist,
-        createdBy: actor.id,
-        updatedBy: actor.id,
-      })
-      .returning();
+    const task = await db.transaction(async (tx) => {
+      const [created] = await tx
+        .insert(tasks)
+        .values({
+          id,
+          title: input.title,
+          description: input.description ?? null,
+          areaId: input.areaId,
+          assignedUserId: input.assignedUserId ?? null,
+          shiftAssignmentId: input.shiftAssignmentId ?? null,
+          priority: input.priority,
+          status: input.status,
+          dueAt: input.dueAt ? new Date(input.dueAt) : null,
+          attachmentUrl: input.attachmentUrl ?? null,
+          checklist: input.checklist,
+          createdBy: actor.id,
+          updatedBy: actor.id,
+        })
+        .returning();
 
-    await writeTaskEvent({
-      taskId: id,
-      eventType: "task.create",
-      newValue: task,
-      reason: input.reason,
-      actorId: actor.id,
+      await writeTaskEvent({
+        taskId: id,
+        eventType: "task.create",
+        newValue: created,
+        reason: input.reason,
+        actorId: actor.id,
+      }, tx);
+
+      await auditOperationalWrite({
+        actor,
+        action: "tasks.create",
+        entityType: "tasks",
+        entityId: id,
+        afterValue: created,
+        reason: input.reason,
+        request,
+      }, tx);
+
+      return created;
     });
 
     if (task.assignedUserId) {
@@ -77,14 +92,17 @@ export async function POST(request: Request) {
       });
     }
 
-    await auditOperationalWrite({
-      actor,
-      action: "tasks.create",
-      entityType: "tasks",
-      entityId: id,
-      afterValue: task,
-      reason: input.reason,
-      request,
+    await publishOperationalRealtime({
+      type: "task.status_changed",
+      actorId: actor.id,
+      userIds: [task.assignedUserId],
+      areaIds: [task.areaId],
+      roles: ["supervisor"],
+      payload: {
+        taskId: task.id,
+        status: task.status,
+        assignedUserId: task.assignedUserId,
+      },
     });
 
     return ok(task, { status: 201 });

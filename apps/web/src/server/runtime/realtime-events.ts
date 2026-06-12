@@ -27,6 +27,25 @@ export async function publishRealtimeEvent(input: {
   return event;
 }
 
+export async function publishRealtimeEventToChannels(input: {
+  type: RealtimeEventType | "notification.created";
+  channels: string[];
+  actorId?: string | null;
+  payload: Record<string, unknown>;
+}) {
+  const channels = [...new Set(input.channels.filter(Boolean))];
+  return Promise.all(
+    channels.map((channel) =>
+      publishRealtimeEvent({
+        type: input.type,
+        channel,
+        actorId: input.actorId,
+        payload: input.payload,
+      }),
+    ),
+  );
+}
+
 export async function listRealtimeEvents(request: Request) {
   const url = new URL(request.url);
   const pagination = parsePagination(url.searchParams);

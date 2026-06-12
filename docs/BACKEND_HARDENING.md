@@ -180,3 +180,15 @@ Backend is ready for frontend consumption under these constraints:
 - Small report export remains available as direct response through `POST /api/reports/export`.
 - Async local/dev report export is implemented through `POST /api/reports/export-jobs`, `GET /api/reports/export-jobs/:id`, and download route backed by `background_jobs`.
 - Production large export still needs a managed background runner/queue and object storage delivery for large files.
+
+## Supervisor Transaction and Delivery Hardening
+
+Tahap 10.2 memperketat write path Supervisor:
+
+- schedule create/update/duplicate/publish menyimpan audit secara atomik;
+- task create/update/priority/status menyimpan task event dan audit secara atomik;
+- SOP version create/publish menyimpan target atau status publish dan audit secara atomik;
+- issue status menyimpan issue event dan audit secara atomik;
+- skill matrix upsert dan audit disimpan dalam satu transaksi;
+- realtime event dipublikasikan setelah commit ke channel user, area, dan role yang relevan;
+- notification/realtime bukan source of truth dan kegagalan delivery tidak membatalkan data operasional yang sudah committed.

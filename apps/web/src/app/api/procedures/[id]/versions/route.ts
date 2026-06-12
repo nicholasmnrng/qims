@@ -25,32 +25,36 @@ export async function POST(request: Request, context: RouteContext) {
     const input = createProcedureVersionSchema.parse(await request.json());
     const versionId = randomUUID();
     const versionNumber = await nextProcedureVersionNumber(procedureId);
-    const [version] = await db
-      .insert(procedureVersions)
-      .values({
-        id: versionId,
-        procedureId,
-        versionNumber,
-        content: input.content ?? null,
-        attachmentUrl: input.attachmentUrl ?? null,
-        effectiveDate: input.effectiveDate ?? null,
-        isCritical: input.isCritical,
-      })
-      .returning();
+    const version = await db.transaction(async (tx) => {
+      const [created] = await tx
+        .insert(procedureVersions)
+        .values({
+          id: versionId,
+          procedureId,
+          versionNumber,
+          content: input.content ?? null,
+          attachmentUrl: input.attachmentUrl ?? null,
+          effectiveDate: input.effectiveDate ?? null,
+          isCritical: input.isCritical,
+        })
+        .returning();
 
-    await createSopTargets({
-      procedureVersionId: versionId,
-      targets: input.targets,
-    });
+      await createSopTargets({
+        procedureVersionId: versionId,
+        targets: input.targets,
+      }, tx);
 
-    await auditOperationalWrite({
-      actor,
-      action: "procedure_versions.create",
-      entityType: "procedure_versions",
-      entityId: versionId,
-      afterValue: { version, targets: input.targets },
-      reason: input.reason,
-      request,
+      await auditOperationalWrite({
+        actor,
+        action: "procedure_versions.create",
+        entityType: "procedure_versions",
+        entityId: versionId,
+        afterValue: { version: created, targets: input.targets },
+        reason: input.reason,
+        request,
+      }, tx);
+
+      return created;
     });
 
     return ok(version, { status: 201 });

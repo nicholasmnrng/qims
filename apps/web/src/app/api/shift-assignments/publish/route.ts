@@ -6,6 +6,7 @@ import {
   auditOperationalWrite,
   createNotification,
   getMissingAreaCoverage,
+  publishOperationalRealtime,
   requireOperationalPermission,
 } from "@/server/api/supervisor";
 import { db } from "@/server/db";
@@ -26,8 +27,8 @@ export async function POST(request: Request) {
     );
 
     const before = await db.select().from(shiftAssignments).where(where);
-    const published = await db.transaction(async (tx) =>
-      tx
+    const published = await db.transaction(async (tx) => {
+      const updated = await tx
         .update(shiftAssignments)
         .set({
           assignmentStatus: "published",
@@ -37,8 +38,21 @@ export async function POST(request: Request) {
           updatedAt: new Date(),
         })
         .where(where)
-        .returning(),
-    );
+        .returning();
+
+      await auditOperationalWrite({
+        actor,
+        action: "shift_assignments.publish",
+        entityType: "shift_assignments",
+        entityId: input.workDate,
+        beforeValue: before,
+        afterValue: updated,
+        reason: input.reason,
+        request,
+      }, tx);
+
+      return updated;
+    });
     const missingCoverage = await getMissingAreaCoverage(input.workDate);
 
     if (published.length > 0) {
@@ -54,15 +68,17 @@ export async function POST(request: Request) {
       });
     }
 
-    await auditOperationalWrite({
-      actor,
-      action: "shift_assignments.publish",
-      entityType: "shift_assignments",
-      entityId: input.workDate,
-      beforeValue: before,
-      afterValue: published,
-      reason: input.reason,
-      request,
+    await publishOperationalRealtime({
+      type: "schedule.updated",
+      actorId: actor.id,
+      userIds: published.map((assignment) => assignment.userId),
+      areaIds: published.map((assignment) => assignment.areaId),
+      roles: ["supervisor"],
+      payload: {
+        workDate: input.workDate,
+        shiftId: input.shiftId ?? null,
+        publishedCount: published.length,
+      },
     });
 
     return ok({ publishedCount: published.length, assignments: published, missingCoverage });

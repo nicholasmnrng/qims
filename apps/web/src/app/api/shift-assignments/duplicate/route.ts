@@ -7,6 +7,7 @@ import { ok } from "@/server/api/response";
 import {
   auditOperationalWrite,
   getAssignmentConflicts,
+  publishOperationalRealtime,
   requireOperationalPermission,
 } from "@/server/api/supervisor";
 import { db } from "@/server/db";
@@ -37,10 +38,25 @@ export async function POST(request: Request) {
       changeReason: input.reason,
     }));
 
-    const created =
-      rows.length > 0
-        ? await db.insert(shiftAssignments).values(rows).returning()
-        : [];
+    const created = await db.transaction(async (tx) => {
+      const duplicated =
+        rows.length > 0
+          ? await tx.insert(shiftAssignments).values(rows).returning()
+          : [];
+
+      await auditOperationalWrite({
+        actor,
+        action: "shift_assignments.duplicate",
+        entityType: "shift_assignments",
+        entityId: `${input.fromDate}->${input.toDate}`,
+        beforeValue: source,
+        afterValue: duplicated,
+        reason: input.reason,
+        request,
+      }, tx);
+
+      return duplicated;
+    });
     const conflicts = (
       await Promise.all(
         created.map((assignment) =>
@@ -54,15 +70,17 @@ export async function POST(request: Request) {
       )
     ).flat();
 
-    await auditOperationalWrite({
-      actor,
-      action: "shift_assignments.duplicate",
-      entityType: "shift_assignments",
-      entityId: `${input.fromDate}->${input.toDate}`,
-      beforeValue: source,
-      afterValue: created,
-      reason: input.reason,
-      request,
+    await publishOperationalRealtime({
+      type: "schedule.updated",
+      actorId: actor.id,
+      userIds: created.map((assignment) => assignment.userId),
+      areaIds: created.map((assignment) => assignment.areaId),
+      roles: ["supervisor"],
+      payload: {
+        workDate: input.toDate,
+        shiftId: input.shiftId ?? null,
+        duplicatedCount: created.length,
+      },
     });
 
     return ok({ duplicatedCount: created.length, assignments: created, conflicts });

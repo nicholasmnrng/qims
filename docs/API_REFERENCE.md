@@ -50,6 +50,14 @@ Rate limit Tahap 7 memakai in-memory bucket untuk development/MVP backend contra
 - Async report export local/dev memakai `POST /api/reports/export-jobs`, `GET /api/reports/export-jobs/:id`, dan `GET /api/reports/export-jobs/:id/download`.
 - Rotation recommendation local/dev memakai `GET /api/rotation-recommendations` untuk ranking inspector per area dari skill matrix dan assignment load.
 
+## Tahap 10.2 Supervisor Runtime Notes
+
+- Assignment list menerima `dateFrom`, `dateTo`, dan `skillLevel`, serta mengembalikan konteks skill inspector pada area.
+- Handover dan issue list menerima rentang tanggal; issue juga menerima `shiftAssignmentId`.
+- Supervisor notification list menerima filter recipient/delivery/read/acknowledgement dan mengembalikan detail serta summary penerima.
+- Schedule, task priority/status, SOP publish, dan issue status menghasilkan event realtime pada channel user/area/role yang relevan.
+- Write operasional utama menyimpan perubahan domain, event domain, dan audit log dalam transaksi yang sama. Notification dan realtime tetap dikirim setelah commit; PostgreSQL tetap source of truth.
+
 ## Runtime Integration Endpoints
 
 ### Device Tokens

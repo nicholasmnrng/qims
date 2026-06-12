@@ -5,6 +5,9 @@ import {
   handoverStatusValues,
   issueSeverityValues,
   issueStatusValues,
+  notificationDeliveryStatusValues,
+  notificationPriorityValues,
+  notificationTypeValues,
   procedureCategoryValues,
   procedureStatusValues,
   procedureTargetTypeValues,
@@ -22,6 +25,25 @@ export const listByOperationalFiltersSchema = z.object({
   workDate: z.string().date().optional(),
   status: z.string().trim().optional(),
 });
+
+export const listShiftAssignmentsQuerySchema = z
+  .object({
+    areaId: z.string().uuid().optional(),
+    shiftId: z.string().uuid().optional(),
+    userId: authUserIdSchema.optional(),
+    workDate: z.string().date().optional(),
+    dateFrom: z.string().date().optional(),
+    dateTo: z.string().date().optional(),
+    status: z.enum(assignmentStatusValues).optional(),
+    skillLevel: z.enum(skillLevelValues).optional(),
+  })
+  .refine(
+    (value) => !value.dateFrom || !value.dateTo || value.dateFrom <= value.dateTo,
+    {
+      message: "dateFrom tidak boleh melewati dateTo.",
+      path: ["dateTo"],
+    },
+  );
 
 export const createShiftAssignmentSchema = z.object({
   userId: authUserIdSchema,
@@ -155,12 +177,38 @@ export const listSkillMatrixQuerySchema = z.object({
 export const listHandoversQuerySchema = z.object({
   areaId: z.string().uuid().optional(),
   status: z.enum(handoverStatusValues).optional(),
-});
+  dateFrom: z.string().date().optional(),
+  dateTo: z.string().date().optional(),
+}).refine(
+  (value) => !value.dateFrom || !value.dateTo || value.dateFrom <= value.dateTo,
+  {
+    message: "dateFrom tidak boleh melewati dateTo.",
+    path: ["dateTo"],
+  },
+);
 
 export const listIssuesQuerySchema = z.object({
   areaId: z.string().uuid().optional(),
+  shiftAssignmentId: z.string().uuid().optional(),
   severity: z.enum(issueSeverityValues).optional(),
   status: z.enum(issueStatusValues).optional(),
+  dateFrom: z.string().date().optional(),
+  dateTo: z.string().date().optional(),
+}).refine(
+  (value) => !value.dateFrom || !value.dateTo || value.dateFrom <= value.dateTo,
+  {
+    message: "dateFrom tidak boleh melewati dateTo.",
+    path: ["dateTo"],
+  },
+);
+
+export const listNotificationRecordsQuerySchema = z.object({
+  type: z.enum(notificationTypeValues).optional(),
+  priority: z.enum(notificationPriorityValues).optional(),
+  recipientUserId: authUserIdSchema.optional(),
+  deliveryStatus: z.enum(notificationDeliveryStatusValues).optional(),
+  readStatus: z.enum(["read", "unread"]).optional(),
+  acknowledgementStatus: z.enum(["acknowledged", "pending"]).optional(),
 });
 
 export const updateIssueStatusSchema = z.object({

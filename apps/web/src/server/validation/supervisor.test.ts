@@ -4,6 +4,10 @@ import { isSkillSufficient } from "@/server/api/supervisor";
 import {
   createShiftAssignmentSchema,
   createTaskSchema,
+  listHandoversQuerySchema,
+  listIssuesQuerySchema,
+  listNotificationRecordsQuerySchema,
+  listShiftAssignmentsQuerySchema,
   publishShiftAssignmentsSchema,
   publishProcedureVersionSchema,
   updateIssueStatusSchema,
@@ -76,5 +80,58 @@ describe("supervisor validation", () => {
   it("requires issue status updates and SOP publish to be auditable", () => {
     expect(() => updateIssueStatusSchema.parse({ status: "closed" })).toThrow();
     expect(() => publishProcedureVersionSchema.parse({})).toThrow();
+  });
+
+  it("validates assignment filters including date range and skill level", () => {
+    expect(
+      listShiftAssignmentsQuerySchema.parse({
+        dateFrom: "2026-06-01",
+        dateTo: "2026-06-30",
+        skillLevel: "competent",
+        status: "published",
+      }),
+    ).toMatchObject({
+      dateFrom: "2026-06-01",
+      dateTo: "2026-06-30",
+      skillLevel: "competent",
+    });
+    expect(() =>
+      listShiftAssignmentsQuerySchema.parse({
+        dateFrom: "2026-06-30",
+        dateTo: "2026-06-01",
+      }),
+    ).toThrow();
+  });
+
+  it("validates handover and issue operational date filters", () => {
+    expect(
+      listHandoversQuerySchema.parse({
+        dateFrom: "2026-06-01",
+        dateTo: "2026-06-30",
+      }),
+    ).toBeTruthy();
+    expect(
+      listIssuesQuerySchema.parse({
+        shiftAssignmentId: "44444444-4444-4444-8444-444444444444",
+        dateFrom: "2026-06-01",
+      }),
+    ).toBeTruthy();
+  });
+
+  it("validates notification recipient and delivery filters", () => {
+    expect(
+      listNotificationRecordsQuerySchema.parse({
+        type: "priority_change",
+        priority: "critical",
+        recipientUserId: "better-auth-user-id",
+        deliveryStatus: "delivered",
+        readStatus: "read",
+        acknowledgementStatus: "acknowledged",
+      }),
+    ).toMatchObject({
+      type: "priority_change",
+      deliveryStatus: "delivered",
+      readStatus: "read",
+    });
   });
 });

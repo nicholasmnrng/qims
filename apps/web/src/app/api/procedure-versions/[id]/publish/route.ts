@@ -6,6 +6,7 @@ import {
   auditOperationalWrite,
   createNotification,
   getProcedureVersionOrThrow,
+  publishOperationalRealtime,
   requireOperationalPermission,
   resolveProcedureRecipients,
 } from "@/server/api/supervisor";
@@ -41,6 +42,17 @@ export async function POST(request: Request, context: RouteContext) {
         })
         .where(eq(procedures.id, updated.procedureId));
 
+      await auditOperationalWrite({
+        actor,
+        action: "procedure_versions.publish",
+        entityType: "procedure_versions",
+        entityId: id,
+        beforeValue: before,
+        afterValue: updated,
+        reason: input.reason,
+        request,
+      }, tx);
+
       return updated;
     });
     const recipientIds = await resolveProcedureRecipients(id);
@@ -56,15 +68,15 @@ export async function POST(request: Request, context: RouteContext) {
       recipientIds,
     });
 
-    await auditOperationalWrite({
-      actor,
-      action: "procedure_versions.publish",
-      entityType: "procedure_versions",
-      entityId: id,
-      beforeValue: before,
-      afterValue: version,
-      reason: input.reason,
-      request,
+    await publishOperationalRealtime({
+      type: "sop.published",
+      actorId: actor.id,
+      userIds: recipientIds,
+      roles: ["supervisor"],
+      payload: {
+        procedureVersionId: version.id,
+        isCritical: version.isCritical,
+      },
     });
 
     return ok({ version, recipientCount: recipientIds.length });
