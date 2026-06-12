@@ -4,6 +4,8 @@ import { db } from "@/server/db";
 import { auditLogs, type UserRole } from "@/server/db/schema";
 import { getClientIp, getUserAgent } from "@/server/api/request";
 
+type AuditDatabase = Pick<typeof db, "insert">;
+
 type AuditInput = {
   actorId?: string | null;
   actorRole?: UserRole | null;
@@ -16,8 +18,11 @@ type AuditInput = {
   request?: Request;
 };
 
-export async function writeAuditLog(input: AuditInput) {
-  await db.insert(auditLogs).values({
+export async function writeAuditLog(
+  input: AuditInput,
+  database: AuditDatabase = db,
+) {
+  await database.insert(auditLogs).values({
     id: randomUUID(),
     actorId: input.actorId ?? null,
     actorRole: input.actorRole ?? null,

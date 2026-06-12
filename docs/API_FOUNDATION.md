@@ -56,6 +56,8 @@ Native Better Auth `POST` route memiliki rate limit 30 request per menit per IP 
 
 Mengembalikan user session aktif dan permission hasil RBAC server-side.
 
+Permission response dibaca dari tabel `role_permissions`, bukan mapping statis aplikasi. Perubahan permission oleh Super Admin berlaku pada request berikutnya tanpa memerlukan logout.
+
 Requires:
 
 - Session valid.

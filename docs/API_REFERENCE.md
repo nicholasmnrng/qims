@@ -14,6 +14,7 @@ Dokumen ini menjadi index API backend setelah Tahap 7. Frontend web dan mobile h
 
 - Semua endpoint selain login membutuhkan session valid, kecuali native Better Auth route yang dipakai library auth.
 - Permission selalu dicek server-side.
+- Runtime RBAC membaca mapping permission dari database sehingga perubahan role permission berlaku pada request berikutnya.
 - List besar wajib memakai pagination dengan `page` dan `limit`; limit maksimum 100.
 - Semua body write divalidasi dengan schema.
 - Error custom QIMS memakai shape:

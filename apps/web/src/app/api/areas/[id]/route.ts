@@ -3,7 +3,6 @@ import { ok } from "@/server/api/response";
 import { requireSessionPermission } from "@/server/auth/session";
 import {
   getMasterRecord,
-  requireSuperAdmin,
   updateMasterRecord,
 } from "@/server/api/super-admin";
 import { updateAreaSchema } from "@/server/validation/super-admin";
@@ -24,7 +23,7 @@ export async function GET(request: Request, context: RouteContext) {
 
 export async function PATCH(request: Request, context: RouteContext) {
   try {
-    const actor = await requireSuperAdmin(request);
+    const actor = await requireSessionPermission(request, "master-data:manage");
     const { id } = await context.params;
     const { reason, ...input } = updateAreaSchema.parse(await request.json());
     return ok(await updateMasterRecord("areas", id, input, reason, actor, request));

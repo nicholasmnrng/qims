@@ -2,11 +2,14 @@ import { eq } from "drizzle-orm";
 
 import { handleApiError } from "@/server/api/errors";
 import { ok } from "@/server/api/response";
-import { requireSessionPermission } from "@/server/auth/session";
+import {
+  hasUserPermission,
+  requireSessionPermission,
+} from "@/server/auth/session";
+import { AuthError } from "@/server/auth/rbac";
 import {
   actorAuditFields,
   getUserById,
-  requireSuperAdmin,
   toAuditValue,
   upsertUserProfile,
   type UpdateUserValues,
@@ -22,9 +25,19 @@ type RouteContext = {
 
 export async function GET(request: Request, context: RouteContext) {
   try {
-    await requireSessionPermission(request, "users:read");
+    const actor = await requireSessionPermission(request, "users:read");
     const { id } = await context.params;
-    return ok(await getUserById(id));
+    const item = await getUserById(id);
+    if (
+      !(await hasUserPermission(actor, "users:write")) &&
+      item.user.role !== "inspector"
+    ) {
+      throw new AuthError(
+        "FORBIDDEN",
+        "Role ini hanya dapat membaca data Inspector.",
+      );
+    }
+    return ok(item);
   } catch (error) {
     return handleApiError(error);
   }
@@ -32,7 +45,7 @@ export async function GET(request: Request, context: RouteContext) {
 
 export async function PATCH(request: Request, context: RouteContext) {
   try {
-    const actor = await requireSuperAdmin(request);
+    const actor = await requireSessionPermission(request, "users:write");
     const { id } = await context.params;
     const input = updateUserSchema.parse(await request.json());
     const before = await getUserById(id);
@@ -43,46 +56,50 @@ export async function PATCH(request: Request, context: RouteContext) {
     if (input.role !== undefined) values.role = input.role;
     if (input.status !== undefined) values.status = input.status;
 
-    if (Object.keys(values).length > 0) {
-      values.updatedAt = new Date();
-      await db.update(users).set(values).where(eq(users.id, id));
-    }
+    const after = await db.transaction(async (tx) => {
+      if (Object.keys(values).length > 0) {
+        values.updatedAt = new Date();
+        await tx.update(users).set(values).where(eq(users.id, id));
+      }
 
-    await upsertUserProfile(id, input.profile);
-    const after = await getUserById(id);
+      await upsertUserProfile(id, input.profile, tx);
+      const updated = await getUserById(id, tx);
 
-    await writeAuditLog({
-      ...actorAuditFields(actor),
-      action: "users.update",
-      entityType: "users",
-      entityId: id,
-      beforeValue: toAuditValue(before),
-      afterValue: toAuditValue(after),
-      reason: input.reason,
-      request,
-    });
-
-    if (
-      before.user.role !== after.user.role ||
-      before.user.status !== after.user.status
-    ) {
       await writeAuditLog({
         ...actorAuditFields(actor),
-        action: "users.role_status_change",
+        action: "users.update",
         entityType: "users",
         entityId: id,
-        beforeValue: toAuditValue({
-          role: before.user.role,
-          status: before.user.status,
-        }),
-        afterValue: toAuditValue({
-          role: after.user.role,
-          status: after.user.status,
-        }),
+        beforeValue: toAuditValue(before),
+        afterValue: toAuditValue(updated),
         reason: input.reason,
         request,
-      });
-    }
+      }, tx);
+
+      if (
+        before.user.role !== updated.user.role ||
+        before.user.status !== updated.user.status
+      ) {
+        await writeAuditLog({
+          ...actorAuditFields(actor),
+          action: "users.role_status_change",
+          entityType: "users",
+          entityId: id,
+          beforeValue: toAuditValue({
+            role: before.user.role,
+            status: before.user.status,
+          }),
+          afterValue: toAuditValue({
+            role: updated.user.role,
+            status: updated.user.status,
+          }),
+          reason: input.reason,
+          request,
+        }, tx);
+      }
+
+      return updated;
+    });
 
     return ok(after);
   } catch (error) {

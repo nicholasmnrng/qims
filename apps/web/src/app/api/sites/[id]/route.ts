@@ -1,8 +1,8 @@
 import { handleApiError } from "@/server/api/errors";
 import { ok } from "@/server/api/response";
+import { requireSessionPermission } from "@/server/auth/session";
 import {
   getMasterRecord,
-  requireSuperAdmin,
   updateMasterRecord,
 } from "@/server/api/super-admin";
 import { updateSiteSchema } from "@/server/validation/super-admin";
@@ -13,7 +13,7 @@ type RouteContext = {
 
 export async function GET(request: Request, context: RouteContext) {
   try {
-    await requireSuperAdmin(request);
+    await requireSessionPermission(request, "master-data:manage");
     const { id } = await context.params;
     return ok(await getMasterRecord("sites", id));
   } catch (error) {
@@ -23,7 +23,7 @@ export async function GET(request: Request, context: RouteContext) {
 
 export async function PATCH(request: Request, context: RouteContext) {
   try {
-    const actor = await requireSuperAdmin(request);
+    const actor = await requireSessionPermission(request, "master-data:manage");
     const { id } = await context.params;
     const { reason, ...input } = updateSiteSchema.parse(await request.json());
     return ok(await updateMasterRecord("sites", id, input, reason, actor, request));

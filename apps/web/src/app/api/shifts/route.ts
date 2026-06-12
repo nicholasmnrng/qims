@@ -4,7 +4,6 @@ import { requireSessionPermission } from "@/server/auth/session";
 import {
   createMasterRecord,
   listSimpleMasterData,
-  requireSuperAdmin,
 } from "@/server/api/super-admin";
 import { createShiftSchema } from "@/server/validation/super-admin";
 
@@ -19,7 +18,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const actor = await requireSuperAdmin(request);
+    const actor = await requireSessionPermission(request, "master-data:manage");
     const { reason, ...input } = createShiftSchema.parse(await request.json());
     return ok(await createMasterRecord("shifts", input, actor, request, reason), {
       status: 201,

@@ -7,12 +7,15 @@ import {
   desc,
   eq,
   getTableColumns,
+  gte,
   ilike,
+  lte,
   or,
 } from "drizzle-orm";
 
 import { writeAuditLog } from "@/server/audit/log";
 import { requireSessionPermission } from "@/server/auth/session";
+import { AuthError, type SessionUser } from "@/server/auth/rbac";
 import { db } from "@/server/db";
 import {
   areas,
@@ -33,6 +36,8 @@ import {
 import { HttpError } from "./http-error";
 import { paginationMeta, parsePagination } from "./pagination";
 
+type SuperAdminDatabase = Pick<typeof db, "select" | "insert" | "update">;
+
 export async function requireSuperAdmin(request: Request) {
   return requireSessionPermission(request, "roles:manage");
 }
@@ -45,14 +50,17 @@ export function toAuditValue(value: unknown) {
   return JSON.parse(JSON.stringify(value)) as Record<string, unknown>;
 }
 
-export function actorAuditFields(actor: Awaited<ReturnType<typeof requireSuperAdmin>>) {
+export function actorAuditFields(actor: SessionUser) {
   return {
     actorId: actor.id,
     actorRole: actor.role,
   };
 }
 
-export async function listUsers(request: Request) {
+export async function listUsers(
+  request: Request,
+  options: { canManageAllUsers: boolean },
+) {
   const url = new URL(request.url);
   const pagination = parsePagination(url.searchParams);
   const { userListQuerySchema } = await import("@/server/validation/super-admin");
@@ -61,8 +69,20 @@ export async function listUsers(request: Request) {
     role: url.searchParams.get("role") ?? undefined,
     status: url.searchParams.get("status") ?? undefined,
   });
+  if (
+    !options.canManageAllUsers &&
+    query.role !== undefined &&
+    query.role !== "inspector"
+  ) {
+    throw new AuthError(
+      "FORBIDDEN",
+      "Role ini hanya dapat membaca daftar Inspector.",
+    );
+  }
+
+  const scopedRole = options.canManageAllUsers ? query.role : "inspector";
   const where = and(
-    query.role ? eq(users.role, query.role) : undefined,
+    scopedRole ? eq(users.role, scopedRole) : undefined,
     query.status ? eq(users.status, query.status) : undefined,
     query.q
       ? or(
@@ -94,8 +114,11 @@ export async function listUsers(request: Request) {
   };
 }
 
-export async function getUserById(id: string) {
-  const [item] = await db
+export async function getUserById(
+  id: string,
+  database: SuperAdminDatabase = db,
+) {
+  const [item] = await database
     .select({
       user: getTableColumns(users),
       profile: getTableColumns(userProfiles),
@@ -122,14 +145,15 @@ export async function upsertUserProfile(
         avatarUrl?: string | null;
         joinDate?: string | null;
         activeSiteId?: string | null;
-      }
+    }
     | undefined,
+  database: SuperAdminDatabase = db,
 ) {
   if (!profile) {
     return;
   }
 
-  const [existing] = await db
+  const [existing] = await database
     .select({ id: userProfiles.id })
     .from(userProfiles)
     .where(eq(userProfiles.userId, userId))
@@ -146,11 +170,14 @@ export async function upsertUserProfile(
   };
 
   if (existing) {
-    await db.update(userProfiles).set(values).where(eq(userProfiles.id, existing.id));
+    await database
+      .update(userProfiles)
+      .set(values)
+      .where(eq(userProfiles.id, existing.id));
     return;
   }
 
-  await db.insert(userProfiles).values({
+  await database.insert(userProfiles).values({
     id: randomUUID(),
     userId,
     ...values,
@@ -160,7 +187,7 @@ export async function upsertUserProfile(
 export async function createMasterRecord<T extends "sites" | "departments" | "areas" | "shifts">(
   tableName: T,
   values: Record<string, unknown>,
-  actor: Awaited<ReturnType<typeof requireSuperAdmin>>,
+  actor: SessionUser,
   request: Request,
   reason: string,
 ) {
@@ -169,19 +196,24 @@ export async function createMasterRecord<T extends "sites" | "departments" | "ar
   const id = randomUUID();
   const insertValues = { id, ...values };
 
-  const [created] = await db.insert(table).values(insertValues as never).returning();
+  return db.transaction(async (tx) => {
+    const [created] = await tx
+      .insert(table)
+      .values(insertValues as never)
+      .returning();
 
-  await writeAuditLog({
-    ...actorAuditFields(actor),
-    action: `${tableName}.create`,
-    entityType: tableName,
-    entityId: id,
-    afterValue: toAuditValue(created),
-    reason,
-    request,
+    await writeAuditLog({
+      ...actorAuditFields(actor),
+      action: `${tableName}.create`,
+      entityType: tableName,
+      entityId: id,
+      afterValue: toAuditValue(created),
+      reason,
+      request,
+    }, tx);
+
+    return created;
   });
-
-  return created;
 }
 
 export async function listSimpleMasterData(
@@ -295,30 +327,32 @@ export async function updateMasterRecord(
   id: string,
   values: Record<string, unknown>,
   reason: string,
-  actor: Awaited<ReturnType<typeof requireSuperAdmin>>,
+  actor: SessionUser,
   request: Request,
 ) {
   const tableMap = { sites, departments, areas, shifts } as const;
   const table = tableMap[tableName];
   const before = await getMasterRecord(tableName, id);
-  const [updated] = await db
-    .update(table)
-    .set({ ...values, updatedAt: new Date() } as never)
-    .where(eq(table.id, id))
-    .returning();
+  return db.transaction(async (tx) => {
+    const [updated] = await tx
+      .update(table)
+      .set({ ...values, updatedAt: new Date() } as never)
+      .where(eq(table.id, id))
+      .returning();
 
-  await writeAuditLog({
-    ...actorAuditFields(actor),
-    action: `${tableName}.update`,
-    entityType: tableName,
-    entityId: id,
-    beforeValue: toAuditValue(before),
-    afterValue: toAuditValue(updated),
-    reason,
-    request,
+    await writeAuditLog({
+      ...actorAuditFields(actor),
+      action: `${tableName}.update`,
+      entityType: tableName,
+      entityId: id,
+      beforeValue: toAuditValue(before),
+      afterValue: toAuditValue(updated),
+      reason,
+      request,
+    }, tx);
+
+    return updated;
   });
-
-  return updated;
 }
 
 export async function listRoles() {
@@ -359,7 +393,7 @@ export async function updateRolePermissions(
   roleId: UserRole,
   permissionIds: string[],
   reason: string,
-  actor: Awaited<ReturnType<typeof requireSuperAdmin>>,
+  actor: SessionUser,
   request: Request,
 ) {
   const [role] = await db.select().from(roles).where(eq(roles.id, roleId)).limit(1);
@@ -383,22 +417,24 @@ export async function updateRolePermissions(
       })),
     );
 
-    return tx
+    const saved = await tx
       .select()
       .from(rolePermissions)
       .where(eq(rolePermissions.roleId, roleId))
       .orderBy(asc(rolePermissions.permissionId));
-  });
 
-  await writeAuditLog({
-    ...actorAuditFields(actor),
-    action: "roles.permissions_update",
-    entityType: "roles",
-    entityId: roleId,
-    beforeValue: toAuditValue({ permissions: before }),
-    afterValue: toAuditValue({ permissions: after }),
-    reason,
-    request,
+    await writeAuditLog({
+      ...actorAuditFields(actor),
+      action: "roles.permissions_update",
+      entityType: "roles",
+      entityId: roleId,
+      beforeValue: toAuditValue({ permissions: before }),
+      afterValue: toAuditValue({ permissions: saved }),
+      reason,
+      request,
+    }, tx);
+
+    return saved;
   });
 
   return {
@@ -413,26 +449,57 @@ export async function listAuditLogs(request: Request) {
   const { auditLogListQuerySchema } = await import("@/server/validation/super-admin");
   const query = auditLogListQuerySchema.parse({
     actorId: url.searchParams.get("actorId") ?? undefined,
+    actor: url.searchParams.get("actor") ?? undefined,
     action: url.searchParams.get("action") ?? undefined,
     entityType: url.searchParams.get("entityType") ?? undefined,
     entityId: url.searchParams.get("entityId") ?? undefined,
+    dateFrom: url.searchParams.get("dateFrom") ?? undefined,
+    dateTo: url.searchParams.get("dateTo") ?? undefined,
   });
+  const dateFrom = query.dateFrom
+    ? new Date(`${query.dateFrom}T00:00:00.000Z`)
+    : undefined;
+  const dateTo = query.dateTo
+    ? new Date(`${query.dateTo}T23:59:59.999Z`)
+    : undefined;
   const where = and(
     query.actorId ? eq(auditLogs.actorId, query.actorId) : undefined,
+    query.actor
+      ? or(
+          ilike(users.name, `%${query.actor}%`),
+          ilike(users.email, `%${query.actor}%`),
+          ilike(users.employeeId, `%${query.actor}%`),
+        )
+      : undefined,
     query.action ? eq(auditLogs.action, query.action) : undefined,
     query.entityType ? eq(auditLogs.entityType, query.entityType) : undefined,
     query.entityId ? eq(auditLogs.entityId, query.entityId) : undefined,
+    dateFrom ? gte(auditLogs.createdAt, dateFrom) : undefined,
+    dateTo ? lte(auditLogs.createdAt, dateTo) : undefined,
   );
 
   const [items, total] = await Promise.all([
     db
-      .select()
+      .select({
+        ...getTableColumns(auditLogs),
+        actor: {
+          id: users.id,
+          name: users.name,
+          email: users.email,
+          employeeId: users.employeeId,
+        },
+      })
       .from(auditLogs)
+      .leftJoin(users, eq(users.id, auditLogs.actorId))
       .where(where)
       .orderBy(desc(auditLogs.createdAt))
       .limit(pagination.limit)
       .offset(pagination.offset),
-    db.select({ value: count() }).from(auditLogs).where(where),
+    db
+      .select({ value: count() })
+      .from(auditLogs)
+      .leftJoin(users, eq(users.id, auditLogs.actorId))
+      .where(where),
   ]);
 
   return {
@@ -449,7 +516,7 @@ export async function upsertSystemSetting(
   key: string,
   value: Record<string, unknown>,
   reason: string,
-  actor: Awaited<ReturnType<typeof requireSuperAdmin>>,
+  actor: SessionUser,
   request: Request,
 ) {
   const [before] = await db
@@ -458,35 +525,37 @@ export async function upsertSystemSetting(
     .where(eq(systemSettings.key, key))
     .limit(1);
 
-  const [updated] = await db
-    .insert(systemSettings)
-    .values({
-      key,
-      value,
-      updatedBy: actor.id,
-    })
-    .onConflictDoUpdate({
-      target: systemSettings.key,
-      set: {
+  return db.transaction(async (tx) => {
+    const [updated] = await tx
+      .insert(systemSettings)
+      .values({
+        key,
         value,
         updatedBy: actor.id,
-        updatedAt: new Date(),
-      },
-    })
-    .returning();
+      })
+      .onConflictDoUpdate({
+        target: systemSettings.key,
+        set: {
+          value,
+          updatedBy: actor.id,
+          updatedAt: new Date(),
+        },
+      })
+      .returning();
 
-  await writeAuditLog({
-    ...actorAuditFields(actor),
-    action: "system_settings.upsert",
-    entityType: "system_settings",
-    entityId: key,
-    beforeValue: toAuditValue(before),
-    afterValue: toAuditValue(updated),
-    reason,
-    request,
+    await writeAuditLog({
+      ...actorAuditFields(actor),
+      action: "system_settings.upsert",
+      entityType: "system_settings",
+      entityId: key,
+      beforeValue: toAuditValue(before),
+      afterValue: toAuditValue(updated),
+      reason,
+      request,
+    }, tx);
+
+    return updated;
   });
-
-  return updated;
 }
 
 export type UpdateUserValues = {

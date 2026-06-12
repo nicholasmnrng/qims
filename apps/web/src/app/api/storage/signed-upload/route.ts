@@ -1,8 +1,12 @@
 import { handleApiError } from "@/server/api/errors";
 import { HttpError } from "@/server/api/http-error";
 import { ok } from "@/server/api/response";
-import { requireSession } from "@/server/auth/session";
-import { hasPermission, requirePermission, type SessionUser } from "@/server/auth/rbac";
+import {
+  hasUserPermission,
+  requireSession,
+  requireUserPermission,
+} from "@/server/auth/session";
+import type { SessionUser } from "@/server/auth/rbac";
 import {
   isAllowedUpload,
   storageObjectKey,
@@ -15,7 +19,7 @@ export async function POST(request: Request) {
     const actor = await requireSession(request);
     const input = signedUploadRequestSchema.parse(await request.json());
 
-    assertUploadPermission(actor, input.bucket);
+    await assertUploadPermission(actor, input.bucket);
     if (!isAllowedUpload(input)) {
       throw new HttpError(
         422,
@@ -46,22 +50,28 @@ export async function POST(request: Request) {
   }
 }
 
-function assertUploadPermission(actor: SessionUser, bucket: StorageBucket) {
+async function assertUploadPermission(actor: SessionUser, bucket: StorageBucket) {
   if (bucket === "sop-files") {
-    requirePermission(actor, "sop:manage");
+    await requireUserPermission(actor, "sop:manage");
     return;
   }
 
   if (bucket === "issue-photos") {
-    if (hasPermission(actor.role, "issues:create-own") || hasPermission(actor.role, "issues:manage")) {
+    if (
+      (await hasUserPermission(actor, "issues:create-own")) ||
+      (await hasUserPermission(actor, "issues:manage"))
+    ) {
       return;
     }
-    requirePermission(actor, "issues:create-own");
+    await requireUserPermission(actor, "issues:create-own");
     return;
   }
 
-  if (hasPermission(actor.role, "handover:create-own") || hasPermission(actor.role, "handover:manage")) {
+  if (
+    (await hasUserPermission(actor, "handover:create-own")) ||
+    (await hasUserPermission(actor, "handover:manage"))
+  ) {
     return;
   }
-  requirePermission(actor, "handover:create-own");
+  await requireUserPermission(actor, "handover:create-own");
 }

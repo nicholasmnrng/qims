@@ -2,11 +2,13 @@ import { describe, expect, it } from "vitest";
 
 import {
   archiveAreaSchema,
+  auditLogListQuerySchema,
   createAreaSchema,
   createShiftSchema,
   createUserSchema,
   updateRolePermissionsSchema,
   updateUserSchema,
+  validateRolePermissionInvariants,
 } from "./super-admin";
 
 describe("super admin validation", () => {
@@ -65,5 +67,56 @@ describe("super admin validation", () => {
     ).toMatchObject({
       permissionIds: ["users:read", "audit:read"],
     });
+  });
+
+  it("rejects duplicate role permissions", () => {
+    expect(() =>
+      updateRolePermissionsSchema.parse({
+        permissionIds: ["users:read", "users:read"],
+        reason: "Duplicate permission test",
+      }),
+    ).toThrow();
+  });
+
+  it("protects the minimum Super Admin permission set", () => {
+    expect(() =>
+      validateRolePermissionInvariants("super_admin", ["audit:read"]),
+    ).toThrow("Super Admin wajib mempertahankan permission");
+
+    expect(() =>
+      validateRolePermissionInvariants("super_admin", [
+        "auth:session:read",
+        "users:read",
+        "users:write",
+        "roles:manage",
+        "master-data:manage",
+        "audit:read",
+      ]),
+    ).not.toThrow();
+  });
+
+  it("accepts audit actor and date filters", () => {
+    expect(
+      auditLogListQuerySchema.parse({
+        actor: "Cladtek Admin",
+        action: "users.update",
+        entityType: "users",
+        dateFrom: "2026-06-01",
+        dateTo: "2026-06-30",
+      }),
+    ).toMatchObject({
+      actor: "Cladtek Admin",
+      dateFrom: "2026-06-01",
+      dateTo: "2026-06-30",
+    });
+  });
+
+  it("rejects an inverted audit date range", () => {
+    expect(() =>
+      auditLogListQuerySchema.parse({
+        dateFrom: "2026-06-30",
+        dateTo: "2026-06-01",
+      }),
+    ).toThrow("dateFrom tidak boleh melewati dateTo");
   });
 });

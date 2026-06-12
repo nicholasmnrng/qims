@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import {
   permissions,
+  requiredSuperAdminPermissions,
 } from "@/server/auth/permissions";
 import {
   masterStatusValues,
@@ -154,15 +155,54 @@ export const updateShiftSchema = createShiftSchema
 
 export const auditLogListQuerySchema = z.object({
   actorId: authUserIdSchema.optional(),
+  actor: z.string().trim().min(1).max(160).optional(),
   action: z.string().trim().min(1).max(120).optional(),
   entityType: z.string().trim().min(1).max(120).optional(),
   entityId: z.string().trim().min(1).max(160).optional(),
-});
+  dateFrom: z.string().date().optional(),
+  dateTo: z.string().date().optional(),
+}).refine(
+  (value) => !value.dateFrom || !value.dateTo || value.dateFrom <= value.dateTo,
+  {
+    message: "dateFrom tidak boleh melewati dateTo.",
+    path: ["dateTo"],
+  },
+);
 
-export const updateRolePermissionsSchema = z.object({
-  permissionIds: z.array(z.enum(permissions)).min(1),
-  reason: z.string().trim().min(1).max(500),
-});
+export const updateRolePermissionsSchema = z
+  .object({
+    permissionIds: z.array(z.enum(permissions)).min(1),
+    reason: z.string().trim().min(1).max(500),
+  })
+  .superRefine((value, context) => {
+    if (new Set(value.permissionIds).size !== value.permissionIds.length) {
+      context.addIssue({
+        code: "custom",
+        path: ["permissionIds"],
+        message: "Permission tidak boleh duplikat.",
+      });
+    }
+  });
+
+export function validateRolePermissionInvariants(
+  roleId: (typeof userRoleValues)[number],
+  permissionIds: readonly (typeof permissions)[number][],
+) {
+  if (roleId !== "super_admin") return;
+
+  const missing = requiredSuperAdminPermissions.filter(
+    (permission) => !permissionIds.includes(permission),
+  );
+  if (missing.length > 0) {
+    throw new z.ZodError([
+      {
+        code: "custom",
+        path: ["permissionIds"],
+        message: `Super Admin wajib mempertahankan permission: ${missing.join(", ")}.`,
+      },
+    ]);
+  }
+}
 
 export const updateSystemSettingsSchema = z.object({
   key: z.string().trim().min(1).max(120),

@@ -4,7 +4,10 @@ import { ok } from "@/server/api/response";
 import { requireSuperAdmin, updateRolePermissions } from "@/server/api/super-admin";
 import { isUserRole } from "@/server/auth/roles";
 import { HttpError } from "@/server/api/http-error";
-import { updateRolePermissionsSchema } from "@/server/validation/super-admin";
+import {
+  updateRolePermissionsSchema,
+  validateRolePermissionInvariants,
+} from "@/server/validation/super-admin";
 
 type RouteContext = {
   params: Promise<{ id: string }>;
@@ -24,6 +27,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     }
 
     const input = updateRolePermissionsSchema.parse(await request.json());
+    validateRolePermissionInvariants(id, input.permissionIds);
     return ok(
       await updateRolePermissions(
         id,

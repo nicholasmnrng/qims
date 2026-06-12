@@ -60,11 +60,18 @@ Migration:
 
 Important PRD operations already use transactions:
 
+- create/update user profile and related audit logs
+- create/update master data and related audit logs
+- update system settings and related audit logs
 - publish schedule: `POST /api/shift-assignments/publish`
 - change priority: `PATCH /api/tasks/:id/priority`
 - SOP publish: `POST /api/procedure-versions/:id/publish`
 - handover submit: `POST /api/handovers`
 - role permission update: `PATCH /api/roles/:id/permissions`
+
+## Runtime RBAC
+
+Permission enforcement and `GET /api/me` read `role_permissions` from PostgreSQL. The static map remains the seed/default definition only. Super Admin permission updates therefore apply to subsequent API requests without forcing a new login.
 
 Follow-up production improvement: wrap notification creation and audit log insertion in an outbox pattern when background workers are introduced.
 

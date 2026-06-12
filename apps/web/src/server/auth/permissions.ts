@@ -24,6 +24,15 @@ export const permissions = [
 
 export type Permission = (typeof permissions)[number];
 
+export const requiredSuperAdminPermissions = [
+  "auth:session:read",
+  "users:read",
+  "users:write",
+  "roles:manage",
+  "master-data:manage",
+  "audit:read",
+] as const satisfies readonly Permission[];
+
 export const rolePermissionMap: Record<UserRole, Permission[]> = {
   super_admin: [...permissions],
   qa_manager: [

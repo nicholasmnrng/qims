@@ -11,7 +11,7 @@ import {
   requireOwnHandoverPermission,
 } from "@/server/api/inspector";
 import { requireSession } from "@/server/auth/session";
-import { requirePermission } from "@/server/auth/rbac";
+import { requireUserPermission } from "@/server/auth/session";
 import { db } from "@/server/db";
 import { handoverItems, handovers } from "@/server/db/schema";
 import { createHandoverSchema } from "@/server/validation/inspector";
@@ -21,11 +21,11 @@ export async function GET(request: Request) {
   try {
     const actor = await requireSession(request);
     if (actor.role === "inspector") {
-      requirePermission(actor, "handover:create-own");
+      await requireUserPermission(actor, "handover:create-own");
       return ok(await listOwnHandovers(request, actor.id));
     }
 
-    requirePermission(actor, "handover:manage");
+    await requireUserPermission(actor, "handover:manage");
     return ok(await listHandovers(request));
   } catch (error) {
     return handleApiError(error);

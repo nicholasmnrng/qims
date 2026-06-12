@@ -15,7 +15,7 @@ import {
   requireOwnTaskPermission,
 } from "@/server/api/inspector";
 import { requireSession } from "@/server/auth/session";
-import { requirePermission } from "@/server/auth/rbac";
+import { requireUserPermission } from "@/server/auth/session";
 import { db } from "@/server/db";
 import { tasks } from "@/server/db/schema";
 import { updateOwnTaskStatusSchema } from "@/server/validation/inspector";
@@ -30,7 +30,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     const { id } = await context.params;
     const sessionUser = await requireSession(request);
     if (sessionUser.role === "inspector") {
-      requirePermission(sessionUser, "tasks:update-own");
+      await requireUserPermission(sessionUser, "tasks:update-own");
       const actor = await requireOwnTaskPermission(request);
       const before = await getOwnTaskOrThrow(actor.id, id);
       const input = updateOwnTaskStatusSchema.parse(await request.json());

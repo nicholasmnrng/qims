@@ -13,6 +13,13 @@ List users mendukung `page`, `limit`, `q`, `role`, dan `status`.
 
 Write user wajib menyertakan `reason`. Perubahan role/status menulis audit log `users.role_status_change`.
 
+Permission:
+
+- Read: `users:read`.
+- Create/update: `users:write`.
+- Role yang hanya memiliki `users:read` dibatasi ke data Inspector; membaca role lain menghasilkan `403 FORBIDDEN`.
+- Update user, profile, dan audit log dijalankan dalam satu transaksi database.
+
 ## Roles and Permissions
 
 - `GET /api/roles`
@@ -20,6 +27,8 @@ Write user wajib menyertakan `reason`. Perubahan role/status menulis audit log `
 - `PATCH /api/roles/:id/permissions`
 
 Role management Tahap 2 mengelola mapping permission untuk role system yang sudah diseed. Update permission wajib menyertakan `reason` dan menulis audit log `roles.permissions_update`.
+
+Runtime RBAC dan `GET /api/me` membaca mapping `role_permissions` dari database. Perubahan permission berlaku pada request berikutnya tanpa logout. Super Admin wajib mempertahankan permission inti session, user, role, master data, dan audit agar sistem tidak terkunci.
 
 ## Master Data
 
@@ -44,6 +53,8 @@ Role management Tahap 2 mengelola mapping permission untuk role system yang suda
 List master data mendukung `page`, `limit`, `q`, dan `status`.
 
 Tidak ada hard delete untuk master data. Area archive menggunakan status `archived`.
+
+Write site, department, area, dan shift membutuhkan `master-data:manage`. Write dan audit log terkait dijalankan dalam satu transaksi.
 
 ## System Settings
 
@@ -71,11 +82,24 @@ Filter:
 - `page`
 - `limit`
 - `actorId`
+- `actor`: pencarian nama, email, atau employee ID actor
 - `action`
 - `entityType`
 - `entityId`
+- `dateFrom`: tanggal UTC inklusif, format `YYYY-MM-DD`
+- `dateTo`: tanggal UTC inklusif, format `YYYY-MM-DD`
 
-Audit log bersifat append-only dan tidak memiliki endpoint update/delete.
+Response menyertakan konteks actor (`id`, `name`, `email`, `employeeId`) bersama setiap audit row. Audit log bersifat append-only dan tidak memiliki endpoint update/delete.
+
+## Verification
+
+QA khusus tahap ini:
+
+```bash
+QIMS_API_URL=http://127.0.0.1:3001 npm run qa:super-admin
+```
+
+Script memverifikasi runtime permission database, pembatasan user lintas role, pagination/filter server-side, dan audit actor/date filter. Permission yang diubah sementara dikembalikan pada blok `finally`.
 
 ## Audit Coverage
 

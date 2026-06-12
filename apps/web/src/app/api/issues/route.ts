@@ -14,7 +14,7 @@ import {
   requireOwnIssuePermission,
 } from "@/server/api/inspector";
 import { requireSession } from "@/server/auth/session";
-import { requirePermission } from "@/server/auth/rbac";
+import { requireUserPermission } from "@/server/auth/session";
 import { db } from "@/server/db";
 import { issueReports } from "@/server/db/schema";
 import { createIssueSchema } from "@/server/validation/inspector";
@@ -24,11 +24,11 @@ export async function GET(request: Request) {
   try {
     const actor = await requireSession(request);
     if (actor.role === "inspector") {
-      requirePermission(actor, "issues:create-own");
+      await requireUserPermission(actor, "issues:create-own");
       return ok(await listOwnIssues(request, actor.id));
     }
 
-    requirePermission(actor, "issues:manage");
+    await requireUserPermission(actor, "issues:manage");
     return ok(await listIssues(request));
   } catch (error) {
     return handleApiError(error);

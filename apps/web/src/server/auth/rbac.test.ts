@@ -32,6 +32,9 @@ const auditor: SessionUser = {
 
 describe("RBAC foundation", () => {
   it("allows a role to use its assigned permission", () => {
+    expect(hasPermission("super_admin", "users:write")).toBe(true);
+    expect(hasPermission("super_admin", "master-data:manage")).toBe(true);
+    expect(hasPermission("super_admin", "roles:manage")).toBe(true);
     expect(hasPermission("supervisor", "schedule:manage")).toBe(true);
     expect(hasPermission("inspector", "tasks:update-own")).toBe(true);
   });
