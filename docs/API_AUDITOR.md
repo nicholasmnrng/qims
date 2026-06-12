@@ -32,9 +32,12 @@ Filters:
 - `page`
 - `limit`
 - `actorId`
+- `actor` (name, email, atau employee ID)
 - `action`
 - `entityType`
 - `entityId`
+- `dateFrom`
+- `dateTo`
 
 Endpoint ini sekarang memakai permission `audit:read`, sehingga Super Admin, QA Manager, dan Auditor yang memiliki permission tersebut dapat membaca audit trail. Tidak ada route write untuk audit log.
 
@@ -48,12 +51,17 @@ Filters:
 - `limit`
 - `procedureId`
 - `procedureVersionId`
+- `q` (judul SOP)
+- `category`
+- `isCritical`
 - `userId`
 - `status`: `pending`, `read`, `understood`, `critical_confirmed`
 - `dateFrom`
 - `dateTo`
 
 Response berisi target SOP per user, status acknowledgement, timestamp acknowledgement jika sudah ada, data SOP, data version, dan data user. Target yang belum acknowledge tetap muncul sebagai `pending`.
+
+Rentang tanggal mengacu pada timestamp acknowledgement terakhir (`criticalConfirmedAt`, `understoodAt`, lalu `readAt`) dan rentang terbalik ditolak.
 
 ## Read-Only Guardrails
 
@@ -67,3 +75,13 @@ Tahap 6 tidak menambahkan endpoint write untuk Auditor. Negative RBAC test memas
 - issue management
 - own issue create
 - own handover create
+
+Route-level QA juga memastikan Auditor ditolak pada:
+
+- direct dan async report export
+- task, schedule, SOP, issue, dan master-data write
+- role/permission dan system-setting update
+- worker/notification dispatch
+- signed upload request
+
+Semua denial mengembalikan error `FORBIDDEN` yang actionable.

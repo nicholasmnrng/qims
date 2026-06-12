@@ -77,6 +77,14 @@ Rate limit Tahap 7 memakai in-memory bucket untuk development/MVP backend contra
 - Local async export mengumpulkan pagination hingga 5000 baris; status/download memerlukan permission export dan ownership.
 - QA Manager tetap read-only untuk operasional sesuai definisi role PRD.
 
+## Tahap 10.5 Auditor Runtime Notes
+
+- Audit trail mendukung actor text/ID, action, entity, dan UTC date range filters.
+- SOP acknowledgement evidence mendukung title search, category, critical flag, procedure/version/user, status, dan acknowledgement date range.
+- Reversed evidence date range ditolak sebelum query.
+- Auditor route-level denial mencakup operational writes, direct/async export, permission/config updates, workers, dan signed upload.
+- Auditor tetap dapat membaca report, audit trail, dan SOP evidence dengan pagination.
+
 ## Runtime Integration Endpoints
 
 ### Device Tokens

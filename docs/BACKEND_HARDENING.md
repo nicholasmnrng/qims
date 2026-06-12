@@ -210,3 +210,11 @@ Tahap 10.2 memperketat write path Supervisor:
 - Direct export menolak hasil di atas 100 baris agar tidak terjadi silent truncation.
 - Local async export melakukan page collection hingga 5000 baris dan menjaga permission serta ownership job.
 - Error async job yang tersimpan tidak membocorkan error internal.
+
+## Auditor Read-Only Hardening
+
+- Audit trail filter mencakup actor context dan inclusive UTC date range.
+- SOP evidence filter mencakup title, category, critical flag, user/version/status, dan acknowledgement date.
+- Validation menolak date range terbalik.
+- Route-level QA membuktikan 12 jalur write/export/runtime ditolak dengan `FORBIDDEN`.
+- SOP pending evidence masih memerlukan target expansion dari SOP target records; pagination response sudah benar, tetapi materialized recipient evidence dapat dipertimbangkan untuk dataset enterprise yang sangat besar.

@@ -14,6 +14,7 @@
     "qa:supervisor": "tsx scripts/supervisor-qa.ts",
     "qa:inspector": "tsx scripts/inspector-qa.ts",
     "qa:qa-manager": "tsx scripts/qa-manager-qa.ts",
+    "qa:auditor": "tsx scripts/auditor-qa.ts",
     "qa:web-browser": "tsx scripts/browser-qa.ts",
     "qa:worker": "tsx scripts/qa-runner.ts",
     "db:generate": "drizzle-kit generate",

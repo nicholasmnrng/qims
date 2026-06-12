@@ -441,3 +441,23 @@ Log ini menjadi catatan utama pekerjaan agent. Semua agent wajib menambah entry 
 - GitHub issue: #13.
 - Parent issue: #9 remains open.
 - Detail report: `docs/agent-reports/2026-06-13-backend-qa-manager-gap-closure.md`.
+
+## 2026-06-13 - Tahap 10.5 Backend Auditor Gap Closure
+
+### PRD Validation
+- PRD sections checked before work: 4.5 Auditor / Viewer, 7.6 SOP & Procedure Management, 7.12 Audit Trail, 7.13 Reporting & Analytics, 14 API Specification, 15 Security Requirements, 16 Performance Requirements, 19 Data Retention & Compliance, 21 Phase 1 Production MVP, 22 Acceptance Criteria Global, 24 Definition of Done.
+- Agent skill used: `agent-skills/backend-agent/SKILL.md`, `agent-skills/qa-agent/SKILL.md`, and `agent-skills/stage-delivery-agent/SKILL.md`.
+- Work completed: expanded SOP evidence filters and date validation, aligned audit filter documentation, and added route-level Auditor QA covering read endpoints plus 12 denied write/export/runtime endpoints.
+- Files changed: Auditor service/validation/tests, Auditor QA script, package scripts, API/hardening docs, work log, and detail report.
+- Tests/checks run: `npm run typecheck` passed; `npm test` passed with 9 files and 53 tests; `npm run lint` passed; `npm run build` passed; `QIMS_API_URL=http://127.0.0.1:3012 npm run qa:auditor` passed.
+- PRD sections checked after work: 4.5, 7.6, 7.12, 7.13, 14, 15, 16, 19, 21, 22, 24.
+- Requirements satisfied: Auditor report/audit/SOP evidence read access, filters and pagination, direct/async export denial, operational/config/worker/storage write denial, and actionable permission errors.
+- Requirements not yet satisfied: enterprise-scale materialized SOP recipient evidence and frontend Auditor views remain later work; Final MVP is not approved.
+- Assumptions made: Auditor remains excluded from report export permission.
+- Deviations from PRD: none intentional.
+- User approval needed: review Tahap 10.2-10.5 results; do not close Final MVP issue #9.
+
+### Notes
+- GitHub issue: #14.
+- Parent issue: #9 remains open and unapproved.
+- Detail report: `docs/agent-reports/2026-06-13-backend-auditor-gap-closure.md`.

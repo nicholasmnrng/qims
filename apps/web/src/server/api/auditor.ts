@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, isNotNull } from "drizzle-orm";
+import { and, desc, eq, ilike, inArray, isNotNull } from "drizzle-orm";
 
 import { requireSessionPermission } from "@/server/auth/session";
 import { db } from "@/server/db";
@@ -82,6 +82,11 @@ export async function listSopAcknowledgements(request: Request) {
     .innerJoin(procedures, eq(procedures.id, procedureVersions.procedureId))
     .where(
       and(
+        filters.q ? ilike(procedures.title, `%${filters.q}%`) : undefined,
+        filters.category ? eq(procedures.category, filters.category) : undefined,
+        filters.isCritical !== undefined
+          ? eq(procedureVersions.isCritical, filters.isCritical)
+          : undefined,
         filters.procedureId ? eq(procedures.id, filters.procedureId) : undefined,
         filters.procedureVersionId
           ? eq(procedureVersions.id, filters.procedureVersionId)

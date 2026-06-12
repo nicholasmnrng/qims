@@ -20,6 +20,7 @@
     "qa:supervisor": "npm --workspace apps/web run qa:supervisor",
     "qa:inspector": "npm --workspace apps/web run qa:inspector",
     "qa:qa-manager": "npm --workspace apps/web run qa:qa-manager",
+    "qa:auditor": "npm --workspace apps/web run qa:auditor",
     "qa:web-browser": "npm --workspace apps/web run qa:web-browser",
     "qa:worker": "npm --workspace apps/web run qa:worker",
     "mobile:start": "npm --workspace apps/mobile run start",
