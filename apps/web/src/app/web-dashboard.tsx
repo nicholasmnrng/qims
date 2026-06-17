@@ -171,6 +171,46 @@ type ToastState = {
 
 type Notify = (toast: ToastState) => void;
 
+type DashboardFilters = {
+  dateFrom: string;
+  dateTo: string;
+  workDate: string;
+  areaId: string;
+  shiftId: string;
+  inspectorId: string;
+  assignmentStatus: string;
+  taskStatus: string;
+  taskPriority: string;
+  issueStatus: string;
+  issueSeverity: string;
+  handoverStatus: string;
+  reportSopStatus: string;
+  auditAction: string;
+  auditActor: string;
+  auditEntityType: string;
+  sopAckStatus: string;
+};
+
+const defaultDashboardFilters: DashboardFilters = {
+  dateFrom: "",
+  dateTo: "",
+  workDate: "",
+  areaId: "",
+  shiftId: "",
+  inspectorId: "",
+  assignmentStatus: "",
+  taskStatus: "",
+  taskPriority: "",
+  issueStatus: "",
+  issueSeverity: "",
+  handoverStatus: "",
+  reportSopStatus: "",
+  auditAction: "",
+  auditActor: "",
+  auditEntityType: "",
+  sopAckStatus: "",
+};
+
 class ClientApiError extends Error {
   constructor(
     message: string,
@@ -302,8 +342,7 @@ export function DashboardApp() {
   const [activeView, setActiveView] = useState<ViewKey>("overview");
   const [ecoMode, setEcoMode] = useState(true);
   const [viewState, setViewState] = useState<LoadState<ViewPayload>>({ status: "idle" });
-  const [auditAction, setAuditAction] = useState("");
-  const [sopAckStatus, setSopAckStatus] = useState("");
+  const [filters, setFilters] = useState<DashboardFilters>(defaultDashboardFilters);
   const [toast, setToast] = useState<ToastState | null>(null);
 
   const session = sessionState.status === "ready" ? sessionState.data : null;
@@ -348,8 +387,7 @@ export function DashboardApp() {
     setViewState({ status: "loading" });
     try {
       const data = await loadViewPayload(currentActiveView, session, {
-        auditAction,
-        sopAckStatus,
+        ...filters,
       });
       setViewState({ status: "ready", data });
     } catch (error) {
@@ -358,7 +396,7 @@ export function DashboardApp() {
         error: error instanceof Error ? error.message : "Data gagal dimuat.",
       });
     }
-  }, [auditAction, currentActiveView, session, sopAckStatus]);
+  }, [currentActiveView, filters, session]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -444,12 +482,13 @@ export function DashboardApp() {
           </div>
         </header>
 
-        {currentActiveView === "audit" && (
+        {["operations", "reports", "audit"].includes(currentActiveView) && (
           <FilterBar
-            auditAction={auditAction}
-            sopAckStatus={sopAckStatus}
-            onAuditActionChange={setAuditAction}
-            onSopAckStatusChange={setSopAckStatus}
+            filters={filters}
+            payload={viewState.status === "ready" ? viewState.data : undefined}
+            view={currentActiveView}
+            onChange={(key, value) => setFilters((current) => ({ ...current, [key]: value }))}
+            onReset={() => setFilters(defaultDashboardFilters)}
             onApply={loadView}
           />
         )}
@@ -486,7 +525,7 @@ export function DashboardApp() {
 async function loadViewPayload(
   view: ViewKey,
   session: SessionData,
-  filters: { auditAction: string; sopAckStatus: string },
+  filters: DashboardFilters,
 ): Promise<ViewPayload> {
   const can = (permission: Permission) => session.permissions.includes(permission);
   const commonLimit = "6";
@@ -507,41 +546,115 @@ async function loadViewPayload(
   }
 
   if (view === "operations") {
+    const assignmentQuery = buildQuery({
+      limit: commonLimit,
+      areaId: filters.areaId || undefined,
+      shiftId: filters.shiftId || undefined,
+      userId: filters.inspectorId || undefined,
+      workDate: filters.dateFrom || filters.dateTo ? undefined : filters.workDate || today(),
+      dateFrom: filters.dateFrom || undefined,
+      dateTo: filters.dateTo || undefined,
+      status: filters.assignmentStatus || undefined,
+    });
+    const taskQuery = buildQuery({
+      limit: commonLimit,
+      areaId: filters.areaId || undefined,
+      assignedUserId: filters.inspectorId || undefined,
+      status: filters.taskStatus || undefined,
+      priority: filters.taskPriority || undefined,
+    });
+    const issueQuery = buildQuery({
+      limit: commonLimit,
+      areaId: filters.areaId || undefined,
+      status: filters.issueStatus || undefined,
+      severity: filters.issueSeverity || undefined,
+      dateFrom: filters.dateFrom || undefined,
+      dateTo: filters.dateTo || undefined,
+    });
+    const handoverQuery = buildQuery({
+      limit: commonLimit,
+      areaId: filters.areaId || undefined,
+      status: filters.handoverStatus || undefined,
+      dateFrom: filters.dateFrom || undefined,
+      dateTo: filters.dateTo || undefined,
+    });
+    const skillQuery = buildQuery({
+      limit: "20",
+      areaId: filters.areaId || undefined,
+      userId: filters.inspectorId || undefined,
+    });
+
     return {
       users: can("users:read") ? await maybe(apiRequest<ApiList>("/api/users?role=inspector&status=active&limit=50")) : undefined,
       areas: can("auth:session:read") ? await maybe(apiRequest<ApiList>("/api/areas?status=active&limit=50")) : undefined,
       shifts: can("auth:session:read") ? await maybe(apiRequest<ApiList>("/api/shifts?status=active&limit=20")) : undefined,
       assignments: can("schedule:manage")
-        ? await maybe(apiRequest<ApiList>(`/api/shift-assignments?workDate=${today()}&limit=${commonLimit}`))
+        ? await maybe(apiRequest<ApiList>(`/api/shift-assignments${assignmentQuery}`))
         : undefined,
-      tasks: can("tasks:manage") ? await maybe(apiRequest<ApiList>(`/api/tasks?limit=${commonLimit}`)) : undefined,
-      issues: can("issues:manage") ? await maybe(apiRequest<ApiList>(`/api/issues?limit=${commonLimit}`)) : undefined,
-      handovers: can("handover:manage") ? await maybe(apiRequest<ApiList>(`/api/handovers?limit=${commonLimit}`)) : undefined,
+      tasks: can("tasks:manage") ? await maybe(apiRequest<ApiList>(`/api/tasks${taskQuery}`)) : undefined,
+      issues: can("issues:manage") ? await maybe(apiRequest<ApiList>(`/api/issues${issueQuery}`)) : undefined,
+      handovers: can("handover:manage") ? await maybe(apiRequest<ApiList>(`/api/handovers${handoverQuery}`)) : undefined,
       notifications: can("notifications:read")
         ? await maybe(apiRequest<ApiList>(`/api/notifications?limit=${commonLimit}`))
         : undefined,
       procedures: can("sop:manage") ? await maybe(apiRequest<ApiList>("/api/procedures?limit=20")) : undefined,
-      skillMatrix: can("skill-matrix:manage") ? await maybe(apiRequest<ApiList>("/api/skill-matrix?limit=20")) : undefined,
+      skillMatrix: can("skill-matrix:manage") ? await maybe(apiRequest<ApiList>(`/api/skill-matrix${skillQuery}`)) : undefined,
     };
   }
 
   if (view === "reports") {
+    const reportBaseQuery = {
+      limit: commonLimit,
+      dateFrom: filters.dateFrom || undefined,
+      dateTo: filters.dateTo || undefined,
+      shiftId: filters.shiftId || undefined,
+      areaId: filters.areaId || undefined,
+      inspectorId: filters.inspectorId || undefined,
+    };
+    const summaryQuery = buildQuery(reportBaseQuery);
+    const shiftQuery = buildQuery({
+      ...reportBaseQuery,
+      status: filters.assignmentStatus || undefined,
+    });
+    const taskQuery = buildQuery({
+      ...reportBaseQuery,
+      status: filters.taskStatus || undefined,
+      priority: filters.taskPriority || undefined,
+    });
+    const sopQuery = buildQuery({
+      ...reportBaseQuery,
+      status: filters.reportSopStatus || undefined,
+    });
+    const issueQuery = buildQuery({
+      ...reportBaseQuery,
+      status: filters.issueStatus || undefined,
+      severity: filters.issueSeverity || undefined,
+    });
+    const skillQuery = buildQuery({
+      limit: commonLimit,
+      areaId: filters.areaId || undefined,
+      inspectorId: filters.inspectorId || undefined,
+    });
+
     return {
-      summary: can("reports:read") ? await maybe(apiRequest<Record<string, unknown>>("/api/reports/dashboard-summary")) : undefined,
+      users: can("users:read") ? await maybe(apiRequest<ApiList>("/api/users?role=inspector&status=active&limit=50")) : undefined,
+      areas: can("auth:session:read") ? await maybe(apiRequest<ApiList>("/api/areas?status=active&limit=50")) : undefined,
+      shifts: can("auth:session:read") ? await maybe(apiRequest<ApiList>("/api/shifts?status=active&limit=20")) : undefined,
+      summary: can("reports:read") ? await maybe(apiRequest<Record<string, unknown>>(`/api/reports/dashboard-summary${summaryQuery}`)) : undefined,
       shiftReport: can("reports:read")
-        ? await maybe(apiRequest<ApiList>(`/api/reports/shift-completion?limit=${commonLimit}`))
+        ? await maybe(apiRequest<ApiList>(`/api/reports/shift-completion${shiftQuery}`))
         : undefined,
       taskReport: can("reports:read")
-        ? await maybe(apiRequest<ApiList>(`/api/reports/task-completion?limit=${commonLimit}`))
+        ? await maybe(apiRequest<ApiList>(`/api/reports/task-completion${taskQuery}`))
         : undefined,
       sopReport: can("reports:read")
-        ? await maybe(apiRequest<ApiList>(`/api/reports/sop-compliance?limit=${commonLimit}`))
+        ? await maybe(apiRequest<ApiList>(`/api/reports/sop-compliance${sopQuery}`))
         : undefined,
       issues: can("reports:read")
-        ? await maybe(apiRequest<ApiList>(`/api/reports/issues?limit=${commonLimit}`))
+        ? await maybe(apiRequest<ApiList>(`/api/reports/issues${issueQuery}`))
         : undefined,
       skillGapReport: can("reports:read")
-        ? await maybe(apiRequest<ApiList>(`/api/reports/skill-gap?limit=${commonLimit}`))
+        ? await maybe(apiRequest<ApiList>(`/api/reports/skill-gap${skillQuery}`))
         : undefined,
     };
   }
@@ -550,12 +663,20 @@ async function loadViewPayload(
     const auditQuery = buildQuery({
       limit: commonLimit,
       action: filters.auditAction.trim() || undefined,
+      actor: filters.auditActor.trim() || undefined,
+      entityType: filters.auditEntityType.trim() || undefined,
+      dateFrom: filters.dateFrom || undefined,
+      dateTo: filters.dateTo || undefined,
     });
     const ackQuery = buildQuery({
       limit: commonLimit,
       status: filters.sopAckStatus || undefined,
+      userId: filters.inspectorId || undefined,
+      dateFrom: filters.dateFrom || undefined,
+      dateTo: filters.dateTo || undefined,
     });
     return {
+      users: can("users:read") ? await maybe(apiRequest<ApiList>("/api/users?role=inspector&status=active&limit=50")) : undefined,
       auditLogs: can("audit:read") ? await maybe(apiRequest<ApiList>(`/api/audit-logs${auditQuery}`)) : undefined,
       sopAcknowledgements: can("audit:read")
         ? await maybe(apiRequest<ApiList>(`/api/procedure-acknowledgements${ackQuery}`))
@@ -1344,41 +1465,216 @@ function AuditView({ payload, session }: { payload: ViewPayload; session: Sessio
 }
 
 function FilterBar({
-  auditAction,
-  sopAckStatus,
-  onAuditActionChange,
-  onSopAckStatusChange,
+  filters,
+  payload,
+  view,
+  onChange,
+  onReset,
   onApply,
 }: {
-  auditAction: string;
-  sopAckStatus: string;
-  onAuditActionChange: (value: string) => void;
-  onSopAckStatusChange: (value: string) => void;
+  filters: DashboardFilters;
+  payload?: ViewPayload;
+  view: ViewKey;
+  onChange: (key: keyof DashboardFilters, value: string) => void;
+  onReset: () => void;
   onApply: () => void;
 }) {
+  const areas = selectOptions(listItems(payload?.areas), "id", "name");
+  const shifts = selectOptions(listItems(payload?.shifts), "id", "name");
+  const inspectors = selectOptions(listItems(payload?.users), "user.id", "user.name");
+
   return (
     <section className="filter-bar">
       <label>
-        <Search aria-hidden size={16} />
+        <FileClock aria-hidden size={16} />
         <input
-          onChange={(event) => onAuditActionChange(event.target.value)}
-          placeholder="Filter audit action"
-          value={auditAction}
+          onChange={(event) => onChange("dateFrom", event.target.value)}
+          title="Date from"
+          type="date"
+          value={filters.dateFrom}
         />
       </label>
       <label>
-        <SlidersHorizontal aria-hidden size={16} />
-        <select onChange={(event) => onSopAckStatusChange(event.target.value)} value={sopAckStatus}>
-          <option value="">All SOP status</option>
-          <option value="pending">Pending</option>
-          <option value="read">Read</option>
-          <option value="understood">Understood</option>
-          <option value="critical_confirmed">Critical confirmed</option>
-        </select>
+        <FileClock aria-hidden size={16} />
+        <input
+          onChange={(event) => onChange("dateTo", event.target.value)}
+          title="Date to"
+          type="date"
+          value={filters.dateTo}
+        />
       </label>
+      {view === "operations" && (
+        <label>
+          <Layers3 aria-hidden size={16} />
+          <input
+            onChange={(event) => onChange("workDate", event.target.value)}
+            title="Work date"
+            type="date"
+            value={filters.workDate}
+          />
+        </label>
+      )}
+      {(view === "operations" || view === "reports") && (
+        <>
+          <label>
+            <Layers3 aria-hidden size={16} />
+            <select onChange={(event) => onChange("areaId", event.target.value)} value={filters.areaId}>
+              <option value="">All areas</option>
+              {areas.map(([value, label]) => (
+                <option key={value} value={value}>{label}</option>
+              ))}
+            </select>
+          </label>
+          <label>
+            <FileClock aria-hidden size={16} />
+            <select onChange={(event) => onChange("shiftId", event.target.value)} value={filters.shiftId}>
+              <option value="">All shifts</option>
+              {shifts.map(([value, label]) => (
+                <option key={value} value={value}>{label}</option>
+              ))}
+            </select>
+          </label>
+        </>
+      )}
+      {(view === "operations" || view === "reports" || view === "audit") && (
+        <label>
+          <Users aria-hidden size={16} />
+          <select onChange={(event) => onChange("inspectorId", event.target.value)} value={filters.inspectorId}>
+            <option value="">All inspectors</option>
+            {inspectors.map(([value, label]) => (
+              <option key={value} value={value}>{label}</option>
+            ))}
+          </select>
+        </label>
+      )}
+      {(view === "operations" || view === "reports") && (
+        <>
+          <label>
+            <SlidersHorizontal aria-hidden size={16} />
+            <select onChange={(event) => onChange("assignmentStatus", event.target.value)} value={filters.assignmentStatus}>
+              <option value="">Assignment status</option>
+              <option value="draft">Draft</option>
+              <option value="published">Published</option>
+              <option value="cancelled">Cancelled</option>
+            </select>
+          </label>
+          <label>
+            <ListChecks aria-hidden size={16} />
+            <select onChange={(event) => onChange("taskStatus", event.target.value)} value={filters.taskStatus}>
+              <option value="">Task status</option>
+              <option value="draft">Draft</option>
+              <option value="assigned">Assigned</option>
+              <option value="acknowledged">Acknowledged</option>
+              <option value="in_progress">In progress</option>
+              <option value="blocked">Blocked</option>
+              <option value="done">Done</option>
+              <option value="verified">Verified</option>
+              <option value="closed">Closed</option>
+              <option value="cancelled">Cancelled</option>
+            </select>
+          </label>
+          <label>
+            <AlertTriangle aria-hidden size={16} />
+            <select onChange={(event) => onChange("taskPriority", event.target.value)} value={filters.taskPriority}>
+              <option value="">Task priority</option>
+              <option value="critical">Critical</option>
+              <option value="high">High</option>
+              <option value="medium">Medium</option>
+              <option value="low">Low</option>
+            </select>
+          </label>
+          <label>
+            <AlertTriangle aria-hidden size={16} />
+            <select onChange={(event) => onChange("issueSeverity", event.target.value)} value={filters.issueSeverity}>
+              <option value="">Issue severity</option>
+              <option value="critical">Critical</option>
+              <option value="high">High</option>
+              <option value="medium">Medium</option>
+              <option value="low">Low</option>
+            </select>
+          </label>
+          <label>
+            <SlidersHorizontal aria-hidden size={16} />
+            <select onChange={(event) => onChange("issueStatus", event.target.value)} value={filters.issueStatus}>
+              <option value="">Issue status</option>
+              <option value="open">Open</option>
+              <option value="under_review">Under review</option>
+              <option value="action_required">Action required</option>
+              <option value="resolved">Resolved</option>
+              <option value="rejected">Rejected</option>
+              <option value="closed">Closed</option>
+            </select>
+          </label>
+        </>
+      )}
+      {view === "operations" && (
+        <label>
+          <Archive aria-hidden size={16} />
+          <select onChange={(event) => onChange("handoverStatus", event.target.value)} value={filters.handoverStatus}>
+            <option value="">Handover status</option>
+            <option value="draft">Draft</option>
+            <option value="submitted">Submitted</option>
+            <option value="read_by_next_shift">Read by next shift</option>
+            <option value="acknowledged">Acknowledged</option>
+            <option value="closed">Closed</option>
+          </select>
+        </label>
+      )}
+      {view === "reports" && (
+        <label>
+          <ClipboardCheck aria-hidden size={16} />
+          <select onChange={(event) => onChange("reportSopStatus", event.target.value)} value={filters.reportSopStatus}>
+            <option value="">SOP report status</option>
+            <option value="acknowledged">Acknowledged</option>
+            <option value="pending">Pending</option>
+          </select>
+        </label>
+      )}
+      {view === "audit" && (
+        <>
+          <label>
+            <Search aria-hidden size={16} />
+            <input
+              onChange={(event) => onChange("auditAction", event.target.value)}
+              placeholder="Audit action"
+              value={filters.auditAction}
+            />
+          </label>
+          <label>
+            <Users aria-hidden size={16} />
+            <input
+              onChange={(event) => onChange("auditActor", event.target.value)}
+              placeholder="Actor name/email"
+              value={filters.auditActor}
+            />
+          </label>
+          <label>
+            <Database aria-hidden size={16} />
+            <input
+              onChange={(event) => onChange("auditEntityType", event.target.value)}
+              placeholder="Entity type"
+              value={filters.auditEntityType}
+            />
+          </label>
+          <label>
+            <SlidersHorizontal aria-hidden size={16} />
+            <select onChange={(event) => onChange("sopAckStatus", event.target.value)} value={filters.sopAckStatus}>
+              <option value="">All SOP status</option>
+              <option value="pending">Pending</option>
+              <option value="read">Read</option>
+              <option value="understood">Understood</option>
+              <option value="critical_confirmed">Critical confirmed</option>
+            </select>
+          </label>
+        </>
+      )}
       <button className="utility-button" onClick={onApply} type="button">
         <RefreshCcw aria-hidden size={16} />
         <span>Apply</span>
+      </button>
+      <button className="utility-button" onClick={onReset} type="button">
+        <RefreshCcw aria-hidden size={16} />
+        <span>Reset</span>
       </button>
     </section>
   );

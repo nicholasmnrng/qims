@@ -481,3 +481,23 @@ Log ini menjadi catatan utama pekerjaan agent. Semua agent wajib menambah entry 
 - Combined report: `docs/agent-reports/2026-06-13-backend-role-gap-closure-summary.md`.
 - Issues #10-#14 are closed.
 - Issue #9 remains open.
+
+## 2026-06-18 - Tahap 10.6 Frontend Web Final MVP Gap Closure
+
+### PRD Validation
+- PRD sections checked before work: 6 Utility UX & Eco-Mode, 7.3 Shift Assignment, 7.4 Task & Priority Management, 7.12 Audit Trail, 7.13 Reporting & Analytics, 9 UI/UX Specification, 10 Notification UX, 12 Technology Stack, 14 API Specification, 15 Security Requirements, 16 Performance Requirements, 21 Phase 1 Production MVP, 22 Acceptance Criteria Global, 24 Definition of Done, 25 Recommended UI Pages.
+- Agent skill used: `agent-skills/frontend-agent/SKILL.md`, `agent-skills/qa-agent/SKILL.md`, and `agent-skills/stage-delivery-agent/SKILL.md`.
+- Work completed: added role-aware server-side web filter controls for operations/reports/audit, wired existing API filter parameters into dashboard payload loading, aligned status filter options with database enums, expanded Playwright browser QA to verify Super Admin forms, Supervisor calendar/drag priority board states, QA Manager charts/export UI, Auditor read-only evidence view, and updated stale frontend documentation.
+- Files changed: `apps/web/src/app/web-dashboard.tsx`, `apps/web/scripts/browser-qa.ts`, `docs/FRONTEND_WEB.md`, this log, and `docs/agent-reports/2026-06-18-frontend-web-gap-closure.md`.
+- Tests/checks run: `npm run typecheck` passed; `npm test` passed with 9 files and 53 tests; `npm run lint` passed; `npm run build` passed; `QIMS_WEB_URL=http://127.0.0.1:3015 npm run qa:web-browser` passed after dev server startup.
+- PRD sections checked after work: 6, 7.3, 7.4, 7.12, 7.13, 9, 10, 12, 14, 15, 16, 21, 22, 24, 25.
+- Requirements satisfied: web UI now exposes server-side filters for large operational/report/audit lists, validates major MVP web views in browser QA, confirms calendar and drag priority board are implemented, confirms Recharts charts/export UI are visible for QA Manager, and keeps Auditor export hidden.
+- Requirements not yet satisfied: stakeholder manual UX review, staging deployment sign-off, production infrastructure credentials/providers, PDF/native Excel export, and mobile physical device/emulator QA remain outside Tahap 10.6.
+- Assumptions made: existing Next App Router dashboard remains the production web entry point; shadcn/TanStack foundation is present through provider/components while the established dashboard surface remains the main role UI.
+- Deviations from PRD: no intentional frontend functional deviation in this stage; remaining non-web or externally blocked items are not claimed complete.
+- User approval needed: continue Tahap 10.7 Mobile Inspector gap closure; issue #9 remains open and Final MVP remains unapproved.
+
+### Notes
+- GitHub issue: #15.
+- Parent issue: #9 remains open.
+- Detail report: `docs/agent-reports/2026-06-18-frontend-web-gap-closure.md`.

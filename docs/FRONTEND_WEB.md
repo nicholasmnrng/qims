@@ -152,10 +152,13 @@ Memakai:
 Implemented:
 
 - command center metrics
+- server-side filter bar for work date/date range, area, shift, inspector, assignment status, task status/priority, issue severity/status, and handover status
 - assignment create/edit/duplicate/publish form
 - conflict warnings from backend response
 - task create/edit/status/priority form
 - critical priority confirmation and reason field
+- drag-and-drop priority board using `@dnd-kit`; reason is required before priority update
+- calendar view for shift assignment coverage
 - SOP create, version, publish action
 - skill matrix upsert and skill gap table
 - handover and issue monitoring tables
@@ -176,7 +179,7 @@ Memakai:
 Implemented:
 
 - report filters for date/shift/area/inspector/status/severity where supported
-- compact visual summary bars
+- Recharts task completion and issue severity charts
 - CSV/JSON export UI with reason field
 - read-only guard for roles without export permission
 
@@ -187,7 +190,14 @@ Memakai:
 - `GET /api/audit-logs`
 - `GET /api/procedure-acknowledgements`
 
-Audit view menyediakan filter ringan untuk audit action dan SOP acknowledgement status.
+Audit view menyediakan server-side filter untuk:
+
+- date range
+- actor name/email
+- audit action
+- entity type
+- inspector/user evidence
+- SOP acknowledgement status
 
 ## UI States
 
@@ -216,10 +226,14 @@ Coverage:
 
 - login Super Admin, Supervisor, QA Manager, Auditor
 - dashboard render
+- Super Admin admin action forms
+- Supervisor calendar view, drag-and-drop priority board, and priority reason field
+- QA Manager charts and export UI
+- Auditor audit/SOP evidence view with no export UI
 - no major console errors
 - mobile viewport has no horizontal overflow
 
 ## Known Limits
 
-- Drag-and-drop priority board is not implemented; current priority board uses compact action forms and backend-backed refresh.
 - Browser QA is automated with Playwright smoke, but stakeholder manual UX review is still needed before Final MVP approval.
+- Frontend filter controls use server-supported filters only; unsupported PRD analytics beyond API section 14 remain explicit backend/product gaps, not frontend-only promises.
