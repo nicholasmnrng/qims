@@ -521,3 +521,23 @@ Log ini menjadi catatan utama pekerjaan agent. Semua agent wajib menambah entry 
 - GitHub issue: #16.
 - Parent issue: #9 remains open.
 - Detail report: `docs/agent-reports/2026-06-18-mobile-inspector-gap-closure.md`.
+
+## 2026-06-18 - Tahap 10.8 Final QA Evidence and MVP Readiness Report
+
+### PRD Validation
+- PRD sections checked before work: 5 Product Scope, 6 Utility UX & Eco-Mode, 7 Core Features, 8 User Flows, 9 UI/UX Specification, 10 Notification UX, 11 Architecture, 14 API Specification, 15 Security Requirements, 16 Performance Requirements, 17 Offline & Sync Requirements, 18 Eco-Mode Requirements, 21 MVP Production Release Scope, 22 Acceptance Criteria Global, 24 Definition of Done, 25 Recommended UI Pages.
+- Agent skill used: `agent-skills/qa-agent/SKILL.md`, `agent-skills/frontend-agent/SKILL.md`, `agent-skills/backend-agent/SKILL.md`, and `agent-skills/stage-delivery-agent/SKILL.md`.
+- Work completed: reran final web/backend/mobile checks after Tahap 10.6-10.7, validated GitHub issue state, confirmed issue #9 remains open, documented current MVP readiness, and recorded remaining blockers without claiming Final MVP approval.
+- Files changed: this log and `docs/agent-reports/2026-06-18-final-mvp-readiness.md`.
+- Tests/checks run: `npm run typecheck`; `npm run lint`; `npm test`; `npm run build`; `npm run mobile:typecheck`; `npm run mobile:build`; `QIMS_WEB_URL=http://127.0.0.1:3015 npm run qa:web-browser`; `QIMS_API_URL=http://127.0.0.1:3015 npm run qa:worker`; `qa:super-admin`; `qa:supervisor`; `qa:inspector`; `qa:qa-manager`; `qa:auditor`.
+- PRD sections checked after work: 5, 6, 7, 8, 9, 10, 11, 14, 15, 16, 17, 18, 21, 22, 24, 25.
+- Requirements satisfied: automated web/backend/mobile checks pass; role API QA passes for Super Admin, Supervisor, Inspector, QA Manager, and Auditor; browser QA verifies major web role surfaces and responsive/no-console baseline; worker/export local runtime QA passes.
+- Requirements not yet satisfied: Final MVP remains not approved by user; physical mobile device/emulator QA, stakeholder manual UX review, staging deployment sign-off, production storage/push/realtime/Redis credentials, native E2E automation, PDF/XLSX export, and `npm audit` transitive advisories remain open/blocking or explicit non-MVP/API gaps.
+- Assumptions made: `qa:mvp-smoke` was intentionally not rerun because it creates visible `MVP Smoke ...` operational records that the user previously asked to remove; role/browser/worker QA are used as the non-smoke final evidence set.
+- Deviations from PRD: production external infrastructure remains provider-ready/local-fallback only and is not claimed complete.
+- User approval needed: user must review final readiness report, decide manual/staging/provider blockers, and approve or reject issue #9.
+
+### Notes
+- GitHub issue: #17.
+- Parent issue: #9 remains open and unapproved.
+- Detail report: `docs/agent-reports/2026-06-18-final-mvp-readiness.md`.
