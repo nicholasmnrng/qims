@@ -73,6 +73,7 @@ Shows:
 - quick actions to Tasks, SOP, Handover
 
 Mission response is cached locally. If refresh fails, app displays cached mission and offline indicator.
+The app normalizes the backend `today-mission` wrapper response (`assignment.assignment`, `topPriority.task`, `pendingSops`, `offlineCacheHints`) into the flat mobile view model before rendering or caching, so area/assignment context is available for field actions.
 
 ### Tasks
 
@@ -88,6 +89,7 @@ Actions:
 - start / in progress
 - blocked
 - done
+- local priority-change banner from refresh/polling fallback, with quick open to Tasks and local acknowledgement
 
 ### SOP
 
@@ -106,7 +108,7 @@ Consumes:
 - `POST /api/offline-drafts`
 - `POST /api/handovers`
 
-Local draft is saved to AsyncStorage and can also be saved to backend offline draft contract. Submit uses explicit handover API.
+Local draft is saved to AsyncStorage and can also be saved to backend offline draft contract. Submit uses explicit handover API. Manual sync removes the local draft after the backend returns `remove_local_draft`.
 
 ### Issues
 
@@ -118,7 +120,7 @@ Consumes:
 - `PUT /api/storage/local-upload?objectKey=...`
 - `POST /api/offline-drafts`
 
-Issue form uses current assignment area and shift assignment when available. User can pick an image, app resizes/compresses to JPEG, uploads through the signed upload contract, and sends `attachmentUrl` to issue creation. Local issue draft is stored in AsyncStorage and can be saved through the offline draft API.
+Issue form uses current assignment area and shift assignment when available. User can pick an image, app resizes/compresses to JPEG, uploads through the signed upload contract, and sends `attachmentUrl` to issue creation. Local issue draft is stored in AsyncStorage while editing, can be saved through the offline draft API, and manual sync sends the same contextual issue payload used by direct submit.
 
 ### Notifications
 
@@ -128,6 +130,7 @@ Consumes:
 - `PATCH /api/notifications/:id/read`
 
 Priority and notification changes are visible through refresh. The web/backend runtime also writes local realtime events; native push provider delivery still requires external credentials.
+When refresh detects a different top priority task/priority, the app shows an in-app priority change banner as the local polling fallback.
 
 ### Profile & Eco Mode
 
@@ -159,6 +162,7 @@ Implemented:
 - local issue draft in AsyncStorage
 - backend offline draft save via `POST /api/offline-drafts`
 - manual sync/save for handover and issue drafts
+- local cleanup for synced handover/issue drafts based on `/api/offline-drafts/sync` response
 
 Not yet implemented:
 

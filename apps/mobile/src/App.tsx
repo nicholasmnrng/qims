@@ -20,7 +20,7 @@ import {
   Wifi,
   WifiOff,
 } from "lucide-react-native";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Image,
@@ -195,6 +195,14 @@ type SignedUpload = {
   };
 };
 
+type SyncDraftResult = {
+  localDraftId: string;
+  accepted: boolean;
+  status: "synced" | "conflict" | "failed" | "pending";
+  nextAction?: "remove_local_draft" | "replace_local_with_server" | "choose_conflict_resolution" | "fix_payload_or_retry";
+  errorMessage?: string;
+};
+
 type LoadState = "booting" | "login" | "ready";
 
 const APP_NAME = "Cladtek Quality Inspector";
@@ -252,7 +260,9 @@ export default function App() {
   });
   const [issuePhoto, setIssuePhoto] = useState<IssuePhoto | null>(null);
   const [pushStatus, setPushStatus] = useState("Push token belum diregistrasi.");
+  const [priorityNotice, setPriorityNotice] = useState<string | null>(null);
   const [loadingData, setLoadingData] = useState(false);
+  const lastTopPriorityKey = useRef("");
 
   const missionStatus = useMemo(() => {
     if (!mission?.assignment) return "Tidak ada assignment aktif";
@@ -306,7 +316,16 @@ export default function App() {
           request<InspectorSettings>("/api/inspector/settings"),
         ]);
 
-      setMission(missionResult.data);
+      const normalizedMission = normalizeMission(missionResult.data);
+      const nextPriorityKey = priorityKey(normalizedMission);
+      if (lastTopPriorityKey.current && nextPriorityKey && nextPriorityKey !== lastTopPriorityKey.current) {
+        setPriorityNotice(
+          `Prioritas berubah: ${normalizedMission.topPriorityTask?.title ?? "Task"} (${normalizedMission.topPriorityTask?.priority ?? "-"})`,
+        );
+      }
+      lastTopPriorityKey.current = nextPriorityKey;
+
+      setMission(normalizedMission);
       setTasks(taskResult.data.items ?? []);
       setProcedures(procedureResult.data.items ?? []);
       setHandovers(handoverResult.data.items ?? []);
@@ -314,12 +333,12 @@ export default function App() {
       setNotifications(notificationResult.data.items ?? []);
       setSettings(settingsResult.data);
       setOnline(true);
-      await AsyncStorage.setItem(storageKeys.cachedMission, JSON.stringify(missionResult.data));
+      await AsyncStorage.setItem(storageKeys.cachedMission, JSON.stringify(normalizedMission));
       setMessage("Data terbaru dimuat.");
     } catch (error) {
       const cached = await AsyncStorage.getItem(storageKeys.cachedMission);
       if (cached) {
-        setMission(JSON.parse(cached) as Mission);
+        setMission(normalizeMission(JSON.parse(cached) as Mission));
         setMessage("Offline. Jadwal terakhir ditampilkan dari cache.");
       } else {
         setMessage(error instanceof Error ? error.message : "Gagal memuat data.");
@@ -357,7 +376,7 @@ export default function App() {
       setLoadState("ready");
     } catch {
       const cached = await AsyncStorage.getItem(storageKeys.cachedMission);
-      if (cached) setMission(JSON.parse(cached) as Mission);
+      if (cached) setMission(normalizeMission(JSON.parse(cached) as Mission));
       setOnline(false);
       setLoadState("ready");
     }
@@ -432,6 +451,13 @@ export default function App() {
       </View>
 
       {message ? <Banner text={message} tone={online ? "info" : "warn"} /> : null}
+      {priorityNotice ? (
+        <PriorityChangeBanner
+          onAcknowledge={() => setPriorityNotice(null)}
+          onOpenTasks={() => setActiveTab("tasks")}
+          text={priorityNotice}
+        />
+      ) : null}
 
       <ScrollView contentContainerStyle={styles.content}>
         {loadingData ? <LoadingBlock /> : null}
@@ -527,7 +553,10 @@ export default function App() {
             draft={issueDraft}
             issues={issues}
             mission={mission}
-            onDraftChange={setIssueDraft}
+            onDraftChange={async (draft) => {
+              setIssueDraft(draft);
+              await AsyncStorage.setItem(storageKeys.issueDraft, JSON.stringify(draft));
+            }}
             onPickPhoto={pickIssuePhoto}
             photo={issuePhoto}
             onSubmit={() =>
@@ -536,15 +565,7 @@ export default function App() {
                   const attachmentUrl = issuePhoto ? await uploadIssuePhoto(issuePhoto) : issueDraft.attachmentUrl;
                   return request("/api/issues", {
                     method: "POST",
-                    body: JSON.stringify({
-                      title: issueDraft.title,
-                      description: issueDraft.description || null,
-                      category: issueDraft.category,
-                      severity: issueDraft.severity,
-                      areaId: mission?.area?.id ?? null,
-                      shiftAssignmentId: mission?.assignment?.id ?? null,
-                      attachmentUrl: attachmentUrl || null,
-                    }),
+                    body: JSON.stringify(issuePayload(mission, issueDraft, attachmentUrl)),
                   });
                 },
                 async () => {
@@ -565,7 +586,7 @@ export default function App() {
                     body: JSON.stringify({
                       localDraftId: `issue-${Date.now()}`,
                       draftType: "issue",
-                      payload: issueDraft,
+                      payload: issuePayload(mission, issueDraft, issueDraft.attachmentUrl),
                       clientUpdatedAt: new Date().toISOString(),
                     }),
                   }),
@@ -631,10 +652,10 @@ export default function App() {
 
   async function mutate(action: () => Promise<unknown>, after?: () => Promise<void> | void) {
     try {
-      await action();
+      const result = await action();
       await after?.();
       setOnline(true);
-      setMessage("Perubahan tersimpan.");
+      setMessage(typeof result === "string" ? result : "Perubahan tersimpan.");
     } catch (error) {
       setOnline(false);
       setMessage(error instanceof Error ? error.message : "Gagal menyimpan. Data tetap aman di perangkat.");
@@ -750,7 +771,7 @@ export default function App() {
       drafts.push({
         localDraftId: `issue-manual-sync-${session?.user.id ?? "offline"}`,
         draftType: "issue",
-        payload: draft as unknown as Record<string, unknown>,
+        payload: issuePayload(mission, draft, draft.attachmentUrl),
         clientUpdatedAt: new Date().toISOString(),
       });
     }
@@ -761,11 +782,34 @@ export default function App() {
     }
 
     await mutate(
-      () =>
-        request("/api/offline-drafts/sync", {
+      async () => {
+        const synced = await request<{ results: SyncDraftResult[] }>("/api/offline-drafts/sync", {
           method: "POST",
           body: JSON.stringify({ drafts }),
-        }),
+        });
+        const syncedDrafts = synced.data.results.filter(
+          (result) => result.accepted && result.nextAction === "remove_local_draft",
+        );
+        if (syncedDrafts.some((result) => result.localDraftId === handoverDraft.localDraftId)) {
+          await AsyncStorage.removeItem(storageKeys.handoverDraft);
+          setHandoverDraft({
+            localDraftId: `handover-${Date.now()}`,
+            category: "special_note",
+            note: "",
+            severity: "low",
+            updatedAt: new Date().toISOString(),
+          });
+        }
+        if (syncedDrafts.some((result) => result.localDraftId.startsWith("issue-manual-sync"))) {
+          await AsyncStorage.removeItem(storageKeys.issueDraft);
+          setIssueDraft({ title: "", description: "", category: "quality_issue", severity: "medium", attachmentUrl: null });
+        }
+        const failed = synced.data.results.filter((result) => !result.accepted);
+        if (failed.length > 0) {
+          throw new Error(failed.map((result) => result.errorMessage ?? result.status).join("; "));
+        }
+        return `${syncedDrafts.length} offline draft berhasil disync.`;
+      },
       refreshMission,
     );
   }
@@ -788,6 +832,84 @@ function handoverPayload(mission: Mission | null, draft: HandoverDraft, status: 
       },
     ],
   };
+}
+
+function issuePayload(mission: Mission | null, draft: IssueDraft, attachmentUrl?: string | null) {
+  return {
+    title: draft.title,
+    description: draft.description || null,
+    category: draft.category,
+    severity: draft.severity,
+    areaId: mission?.area?.id ?? null,
+    shiftAssignmentId: mission?.assignment?.id ?? null,
+    attachmentUrl: attachmentUrl || null,
+  };
+}
+
+function normalizeMission(input: unknown): Mission {
+  const raw = asRecord(input);
+  const assignmentRow = asRecord(raw.assignment);
+  const assignment = asRecord(assignmentRow.assignment ?? raw.assignment);
+  const shift = asRecord(assignmentRow.shift ?? raw.shift);
+  const area = asRecord(assignmentRow.area ?? raw.area);
+  const topPriorityRow = asRecord(raw.topPriorityTask ?? raw.topPriority);
+  const topPriorityTask = asRecord(topPriorityRow.task ?? topPriorityRow);
+  const activeTasks = asArray(raw.activeTasks).map((item) => {
+    const row = asRecord(item);
+    return asRecord(row.task ?? row) as TaskRow["task"];
+  });
+  const pendingProcedures = asArray(raw.pendingProcedures ?? raw.pendingSops) as ProcedureRow[];
+  const latestHandoverRow = asArray(raw.latestHandovers)[0] ?? raw.latestHandover ?? null;
+
+  return {
+    workDate: String(raw.workDate ?? ""),
+    assignment: Object.keys(assignment).length > 0
+      ? {
+          id: String(assignment.id ?? ""),
+          workDate: String(assignment.workDate ?? raw.workDate ?? ""),
+          assignmentStatus: String(assignment.assignmentStatus ?? ""),
+          shiftId: String(assignment.shiftId ?? ""),
+          areaId: String(assignment.areaId ?? ""),
+        }
+      : null,
+    shift: Object.keys(shift).length > 0
+      ? {
+          id: String(shift.id ?? ""),
+          name: String(shift.name ?? ""),
+          startTime: String(shift.startTime ?? ""),
+          endTime: String(shift.endTime ?? ""),
+        }
+      : null,
+    area: Object.keys(area).length > 0
+      ? {
+          id: String(area.id ?? ""),
+          name: String(area.name ?? ""),
+          code: typeof area.code === "string" ? area.code : null,
+        }
+      : null,
+    topPriorityTask: Object.keys(topPriorityTask).length > 0 ? (topPriorityTask as TaskRow["task"]) : null,
+    activeTasks,
+    pendingProcedures,
+    latestHandover: latestHandoverRow
+      ? ({ handover: latestHandoverRow } as HandoverRow)
+      : null,
+    unreadNotificationCount: Number(raw.unreadNotificationCount ?? 0),
+    settings: raw.settings as InspectorSettings | undefined,
+    cacheHints: asRecord(raw.cacheHints ?? raw.offlineCacheHints),
+  };
+}
+
+function priorityKey(mission: Mission) {
+  if (!mission.topPriorityTask?.id) return "";
+  return `${mission.topPriorityTask.id}:${mission.topPriorityTask.priority}`;
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
+}
+
+function asArray(value: unknown): unknown[] {
+  return Array.isArray(value) ? value : [];
 }
 
 function LoginScreen({
@@ -1209,6 +1331,26 @@ function Banner({ text, tone }: { text: string; tone: "info" | "warn" }) {
   );
 }
 
+function PriorityChangeBanner({
+  onAcknowledge,
+  onOpenTasks,
+  text,
+}: {
+  onAcknowledge: () => void;
+  onOpenTasks: () => void;
+  text: string;
+}) {
+  return (
+    <View style={[styles.banner, styles.priorityBanner]}>
+      <Text style={styles.bannerText}>{text}</Text>
+      <View style={styles.buttonRow}>
+        <SmallButton label="Buka Tasks" onPress={onOpenTasks} />
+        <SmallButton label="OK" onPress={onAcknowledge} />
+      </View>
+    </View>
+  );
+}
+
 function Badge({ text, tone = "info" }: { text: string; tone?: "info" | "warn" }) {
   return (
     <View style={[styles.badge, tone === "warn" ? styles.badgeWarn : null]}>
@@ -1478,6 +1620,9 @@ const styles = StyleSheet.create({
   },
   bannerWarn: {
     borderColor: colors.warn,
+  },
+  priorityBanner: {
+    borderColor: colors.accent,
   },
   bannerText: {
     color: colors.text,
